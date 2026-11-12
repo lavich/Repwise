@@ -1,6 +1,6 @@
 import type { AppData } from '@/domain/types'
 import { localDayKey } from '@/domain/stats'
-import { fillMissingExercises } from './migrate'
+import { fillMissingExercises, schemaVersionOf } from './migrate'
 import { backupSchema, type Backup } from './schema'
 
 export function createBackup(data: AppData, now: string): Backup {
@@ -19,6 +19,10 @@ export function parseBackup(text: string, now: string): ImportResult {
     json = JSON.parse(text)
   } catch {
     return { ok: false, error: 'Файл не является корректным JSON.' }
+  }
+  const data = typeof json === 'object' && json !== null && 'data' in json ? json.data : undefined
+  if (schemaVersionOf(data) === 1) {
+    return { ok: false, error: 'Это резервная копия прежней программы — в новой программе её не открыть.' }
   }
   const parsed = backupSchema.safeParse(
     typeof json === 'object' && json !== null && 'data' in json ? { ...json, data: fillMissingExercises(json.data, now) } : json,

@@ -1,10 +1,13 @@
 import { z } from 'zod'
+import { findStep } from '@/domain/exercises'
 import {
-  BAND_LEVELS,
+  DECISION_KINDS,
   EXERCISE_IDS,
+  SCHEMA_VERSION,
   SKIP_REASONS,
   type ActiveWorkout,
   type AppData,
+  type ExerciseId,
   type ExerciseProgression,
   type ProgressionSuggestion,
   type UserSettings,
@@ -12,40 +15,43 @@ import {
 } from '@/domain/types'
 
 const isoDate = z.iso.datetime({ message: 'Некорректная дата' })
-const level = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
-const band = z.enum(BAND_LEVELS)
 const exerciseId = z.enum(EXERCISE_IDS)
+
+function checkStep(ctx: z.RefinementCtx, id: ExerciseId, stepId: string, path: (string | number)[]) {
+  if (!findStep(id, stepId)) ctx.addIssue({ code: 'custom', message: `Неизвестная ступень «${stepId}»`, path })
+}
 
 const setResultSchema = z.object({
   setNumber: z.number().int().positive(),
-  targetReps: z.number().int().nonnegative(),
+  repMin: z.number().int().positive(),
+  repMax: z.number().int().positive(),
   completedReps: z.number().int().nonnegative(),
   completedAt: isoDate,
 })
 
-const sessionExerciseSchema = z.object({
-  plannedExerciseId: exerciseId,
-  performedExerciseId: exerciseId,
-  level,
-  band: band.nullable(),
-  targetSets: z.number().int().positive(),
-  targetReps: z.number().int().positive(),
-  sets: z.array(setResultSchema),
-  goodTechnique: z.boolean().nullable(),
-  skipped: z.object({ reason: z.enum(SKIP_REASONS), note: z.string().optional() }).optional(),
-})
+const sessionExerciseSchema = z
+  .object({
+    exerciseId,
+    stepId: z.string(),
+    repMin: z.number().int().positive(),
+    repMax: z.number().int().positive(),
+    perSide: z.boolean(),
+    targetSets: z.number().int().positive(),
+    sets: z.array(setResultSchema),
+    goodTechnique: z.boolean().nullable(),
+    skipped: z.object({ reason: z.enum(SKIP_REASONS), note: z.string().optional() }).optional(),
+  })
+  .superRefine((value, ctx) => checkStep(ctx, value.exerciseId, value.stepId, ['stepId']))
 
 const feedbackSchema = z.object({
   rpe: z.number().int().min(1).max(10),
   pain: z.boolean(),
-  dizzinessOrNausea: z.boolean(),
   notes: z.string(),
 })
 
 export const sessionSchema: z.ZodType<WorkoutSession> = z.object({
   id: z.string().min(1),
   workoutId: z.enum(['A', 'B']),
-  programWeek: level,
   startedAt: isoDate,
   finishedAt: isoDate.optional(),
   status: z.enum(['in-progress', 'completed', 'stopped']),
@@ -53,24 +59,30 @@ export const sessionSchema: z.ZodType<WorkoutSession> = z.object({
   feedback: feedbackSchema.optional(),
 })
 
-const exerciseProgressionSchema: z.ZodType<ExerciseProgression> = z.object({
-  level,
-  band: band.nullable(),
-  useAlternative: z.boolean(),
-  updatedAt: isoDate,
-})
+const exerciseProgressionSchema = z.object({ stepId: z.string(), updatedAt: isoDate })
 
-const progressionStateSchema = z.record(exerciseId, exerciseProgressionSchema)
+const progressionStateSchema = z
+  .record(exerciseId, exerciseProgressionSchema)
+  .superRefine((state, ctx) => {
+    for (const [id, progression] of Object.entries(state) as [ExerciseId, ExerciseProgression][]) {
+      checkStep(ctx, id, progression.stepId, [id, 'stepId'])
+    }
+  })
 
-const suggestionSchema: z.ZodType<ProgressionSuggestion> = z.object({
-  id: z.string(),
-  sessionId: z.string(),
-  exerciseId,
-  kind: z.enum(['progress', 'increase-band', 'repeat', 'reduce', 'safety-hold', 'use-alternative', 'on-plan']),
-  reason: z.string(),
-  current: exerciseProgressionSchema,
-  proposed: exerciseProgressionSchema,
-})
+const suggestionSchema: z.ZodType<ProgressionSuggestion> = z
+  .object({
+    id: z.string(),
+    sessionId: z.string(),
+    exerciseId,
+    kind: z.enum(DECISION_KINDS),
+    reason: z.string(),
+    currentStepId: z.string(),
+    proposedStepId: z.string(),
+  })
+  .superRefine((value, ctx) => {
+    checkStep(ctx, value.exerciseId, value.currentStepId, ['currentStepId'])
+    checkStep(ctx, value.exerciseId, value.proposedStepId, ['proposedStepId'])
+  })
 
 const settingsSchema: z.ZodType<UserSettings> = z.object({
   theme: z.enum(['dark', 'light']),
@@ -87,7 +99,7 @@ const activeWorkoutSchema: z.ZodType<ActiveWorkout> = z.object({
 })
 
 export const appDataSchema: z.ZodType<AppData> = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(SCHEMA_VERSION),
   sessions: z.array(sessionSchema),
   activeWorkout: activeWorkoutSchema.nullable(),
   progression: progressionStateSchema,

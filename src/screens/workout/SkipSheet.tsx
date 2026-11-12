@@ -21,8 +21,8 @@ export function SkipSheet({
 }) {
   const [reason, setReason] = useState<SkipReason | null>(null)
   const [note, setNote] = useState('')
-  const info = EXERCISES[exercise.performedExerciseId]
-  const symptomatic = reason === 'pain' || reason === 'dizziness'
+  const info = EXERCISES[exercise.exerciseId]
+  const painful = reason === 'pain'
 
   const close = () => {
     setReason(null)
@@ -56,10 +56,10 @@ export function SkipSheet({
           className="mt-2 w-full resize-none rounded-2xl border border-border bg-surface-2 px-4 py-3 text-base outline-none focus:border-accent"
         />
       </label>
-      {symptomatic && (
+      {painful && (
         <div className="mt-4 rounded-2xl bg-danger-soft p-4">
           <p className="text-[15px] leading-snug">
-            Если симптомы не проходят за пару минут — лучше закончить тренировку на сегодня.
+            Если боль не проходит за пару минут — лучше закончить тренировку на сегодня.
           </p>
           <Button variant="danger" className="mt-3 w-full" onClick={() => { close(); onStopWorkout() }}>
             Остановить тренировку

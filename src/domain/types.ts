@@ -2,74 +2,73 @@ export const BAND_LEVELS = ['L1', 'L2', 'L3'] as const
 export type BandLevel = (typeof BAND_LEVELS)[number]
 
 export const EXERCISE_IDS = [
-  'banded-squat',
-  'glute-bridge',
-  'lateral-band-walk',
-  'standing-calf-raise',
+  'band-squat',
+  'push-up',
+  'seated-band-row',
+  'band-romanian-deadlift',
+  'band-overhead-press',
+  'band-biceps-curl',
+  'calf-raise',
+  'reverse-crunch',
+  'bulgarian-split-squat',
+  'bent-over-band-row',
+  'sliding-leg-curl',
+  'band-lateral-raise',
+  'banded-glute-bridge',
+  'band-overhead-triceps-extension',
   'dead-bug',
-  'supported-reverse-lunge',
-  'banded-clamshell',
-  'standing-hip-abduction',
-  'sit-to-stand',
-  'heel-slides',
 ] as const
 export type ExerciseId = (typeof EXERCISE_IDS)[number]
 
 export type WorkoutId = 'A' | 'B'
 
-export const PROGRAM_WEEKS = 4
-export type Level = 1 | 2 | 3 | 4
+export interface LoadStep {
+  id: string
+  label: string
+  bands: BandLevel[]
+}
 
-export type BodyPosition = 'standing' | 'floor'
-
-export type Equipment =
-  | { kind: 'bodyweight' }
-  | { kind: 'band'; band: BandLevel; placement: string }
+export interface RepRange {
+  min: number
+  max: number
+}
 
 export interface Exercise {
   id: ExerciseId
   nameRu: string
   nameEn: string
-  equipment: Equipment
-  equipmentNote: string
-  position: BodyPosition
+  muscles: string
   summary: string
+  repRange: RepRange
+  perSide: boolean
+  sets: number
+  restSeconds?: number
+  loadSteps: LoadStep[]
+  defaultStepId: string
   startingPosition: string
   steps: string[]
   movement: string
   breathing: string
   commonMistakes: string[]
-  safety: string[]
-  alternativeId?: ExerciseId
-  allowedBands: BandLevel[]
-  restSeconds?: number
-}
-
-export interface Prescription {
-  sets: number
-  reps: number
-}
-
-export interface WorkoutExercise {
-  exerciseId: ExerciseId
-  weeks: readonly [Prescription, Prescription, Prescription, Prescription]
+  tips: string[]
 }
 
 export interface Workout {
   id: WorkoutId
   title: string
   subtitle: string
-  exercises: WorkoutExercise[]
+  exerciseIds: ExerciseId[]
 }
 
 export interface ExerciseSetResult {
   setNumber: number
-  targetReps: number
+  repMin: number
+  repMax: number
   completedReps: number
   completedAt: string
 }
 
-export const SKIP_REASONS = ['pain', 'dizziness', 'balance', 'fatigue', 'other'] as const
+export const SKIP_REASONS = ['pain', 'fatigue', 'equipment', 'other'] as const
 export type SkipReason = (typeof SKIP_REASONS)[number]
 
 export interface ExerciseSkip {
@@ -78,12 +77,12 @@ export interface ExerciseSkip {
 }
 
 export interface SessionExercise {
-  plannedExerciseId: ExerciseId
-  performedExerciseId: ExerciseId
-  level: Level
-  band: BandLevel | null
+  exerciseId: ExerciseId
+  stepId: string
+  repMin: number
+  repMax: number
+  perSide: boolean
   targetSets: number
-  targetReps: number
   sets: ExerciseSetResult[]
   goodTechnique: boolean | null
   skipped?: ExerciseSkip
@@ -92,7 +91,6 @@ export interface SessionExercise {
 export interface SessionFeedback {
   rpe: number
   pain: boolean
-  dizzinessOrNausea: boolean
   notes: string
 }
 
@@ -101,7 +99,6 @@ export type SessionStatus = 'in-progress' | 'completed' | 'stopped'
 export interface WorkoutSession {
   id: string
   workoutId: WorkoutId
-  programWeek: Level
   startedAt: string
   finishedAt?: string
   status: SessionStatus
@@ -110,22 +107,22 @@ export interface WorkoutSession {
 }
 
 export interface ExerciseProgression {
-  level: Level
-  band: BandLevel | null
-  useAlternative: boolean
+  stepId: string
   updatedAt: string
 }
 
 export type ProgressionState = Record<ExerciseId, ExerciseProgression>
 
-export type ProgressionDecisionKind =
-  | 'progress'
-  | 'increase-band'
-  | 'repeat'
-  | 'reduce'
-  | 'safety-hold'
-  | 'use-alternative'
-  | 'on-plan'
+export const DECISION_KINDS = [
+  'step-up',
+  'step-down',
+  'pain-hold',
+  'keep',
+  'add-reps',
+  'top-step',
+  'bottom-step',
+] as const
+export type ProgressionDecisionKind = (typeof DECISION_KINDS)[number]
 
 export interface ProgressionSuggestion {
   id: string
@@ -133,8 +130,8 @@ export interface ProgressionSuggestion {
   exerciseId: ExerciseId
   kind: ProgressionDecisionKind
   reason: string
-  current: ExerciseProgression
-  proposed: ExerciseProgression
+  currentStepId: string
+  proposedStepId: string
 }
 
 export type ThemePreference = 'dark' | 'light'
@@ -155,8 +152,10 @@ export interface ActiveWorkout {
   stopping: boolean
 }
 
+export const SCHEMA_VERSION = 2
+
 export interface AppData {
-  schemaVersion: 1
+  schemaVersion: typeof SCHEMA_VERSION
   sessions: WorkoutSession[]
   activeWorkout: ActiveWorkout | null
   progression: ProgressionState

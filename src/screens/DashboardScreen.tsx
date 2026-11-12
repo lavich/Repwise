@@ -1,35 +1,27 @@
 import { ChevronRight, History, Play } from 'lucide-react'
 import { useState } from 'react'
-import { ScopeNotice, SafetyRules } from '@/components/SafetyNotice'
+import { SafetyRules } from '@/components/SafetyNotice'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { SuggestionCard } from '@/components/SuggestionCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, SectionTitle } from '@/components/ui/card'
 import { Sheet } from '@/components/ui/sheet'
-import { EXERCISES } from '@/domain/exercises'
-import {
-  completedSessions,
-  isProgramFinished,
-  nextWorkoutId,
-  prescriptionFor,
-  PROGRAM_TOTAL_WORKOUTS,
-  programWeekAfter,
-  WORKOUTS,
-  WORKOUTS_PER_WEEK,
-} from '@/domain/program'
-import { PROGRAM_WEEKS, type WorkoutId } from '@/domain/types'
+import { EXERCISES, stepLabel } from '@/domain/exercises'
+import { completedSessions, completedThisWeek, nextWorkoutId, WEEKLY_GOAL, WORKOUTS } from '@/domain/program'
+import type { WorkoutId } from '@/domain/types'
 import { pendingActionableSuggestions } from '@/domain/workoutFlow'
 import { cn } from '@/lib/cn'
-import { formatPrescription, formatWeekday, plural } from '@/lib/format'
+import { formatRepRange, formatWeekday, plural } from '@/lib/format'
 import { start, updateSettings } from '@/state/actions'
+import { useNow } from '@/lib/hooks'
 import { useAppData } from '@/state/store'
 
 export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }) {
   const data = useAppData()
   const done = completedSessions(data.sessions)
-  const week = programWeekAfter(done.length)
-  const finished = isProgramFinished(done.length)
+  const now = useNow(true, 60_000)
+  const thisWeek = completedThisWeek(data.sessions, new Date(now))
   const suggested = nextWorkoutId(data.sessions)
   const [chosen, setChosen] = useState<WorkoutId | null>(null)
   const workoutId = chosen ?? suggested
@@ -45,10 +37,7 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
 
   return (
     <>
-      <ScreenHeader
-        subtitle={finished ? 'Программа пройдена' : `Неделя ${week} из ${PROGRAM_WEEKS}`}
-        title="Repwise"
-      />
+      <ScreenHeader subtitle={`На этой неделе ${thisWeek} из ${WEEKLY_GOAL}`} title="Repwise" />
 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-2">
@@ -76,18 +65,20 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
         <p className="text-[15px] text-muted">{workout.subtitle}</p>
 
         <ol className="mt-4 divide-y divide-border">
-          {workout.exercises.map(({ exerciseId }) => {
-            const state = data.progression[exerciseId]
-            const alternativeId = EXERCISES[exerciseId].alternativeId
-            const performed = state.useAlternative && alternativeId ? alternativeId : exerciseId
-            const rx = prescriptionFor(exerciseId, state.level)
+          {workout.exerciseIds.map((exerciseId) => {
+            const exercise = EXERCISES[exerciseId]
+            const stepId = data.progression[exerciseId].stepId
             return (
               <li key={exerciseId} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="min-w-0 truncate text-[15px] font-medium">{EXERCISES[performed].nameRu}</span>
-                <span className="flex shrink-0 items-center gap-2">
-                  {state.band && <Badge tone="band">{state.band}</Badge>}
-                  <span className="tabular text-[15px] font-semibold">{formatPrescription(rx.sets, rx.reps)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-medium">{exercise.nameRu}</span>
+                  <span className="tabular block text-[13px] text-muted">
+                    {exercise.sets} × {formatRepRange(exercise.repRange.min, exercise.repRange.max, exercise.perSide)}
+                  </span>
                 </span>
+                <Badge tone="band" className="max-w-[45%] shrink-0">
+                  <span className="truncate">{stepLabel(exerciseId, stepId)}</span>
+                </Badge>
               </li>
             )
           })}
@@ -99,7 +90,7 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
         </Button>
         {chosen && (
           <p className="mt-2 text-center text-[13px] text-muted">
-            По расписанию сейчас {WORKOUTS[suggested].title.toLowerCase()}
+            По расписанию — {WORKOUTS[suggested].title}
           </p>
         )}
       </Card>
@@ -117,42 +108,19 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
       )}
 
       <section className="mt-6">
-        <SectionTitle>Программа</SectionTitle>
+        <SectionTitle>Неделя</SectionTitle>
         <Card>
           <div className="flex items-baseline justify-between">
-            <p className="text-[15px] font-medium">4 недели · 2 тренировки в неделю</p>
+            <p className="text-[15px] font-medium">Цель — {WEEKLY_GOAL} тренировки на всё тело</p>
             <p className="tabular text-[15px] font-semibold">
-              {Math.min(done.length, PROGRAM_TOTAL_WORKOUTS)}/{PROGRAM_TOTAL_WORKOUTS}
+              {Math.min(thisWeek, WEEKLY_GOAL)}/{WEEKLY_GOAL}
             </p>
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2" aria-hidden="true">
-            {Array.from({ length: PROGRAM_WEEKS }, (_, w) => (
-              <div key={w} className="space-y-1.5">
-                <div className="flex gap-1">
-                  {Array.from({ length: WORKOUTS_PER_WEEK }, (_, i) => {
-                    const index = w * WORKOUTS_PER_WEEK + i
-                    return (
-                      <div
-                        key={i}
-                        className={cn(
-                          'h-2 flex-1 rounded-full',
-                          index < done.length ? 'bg-accent' : index === done.length ? 'bg-accent/30' : 'bg-surface-2',
-                        )}
-                      />
-                    )
-                  })}
-                </div>
-                <p className={cn('text-xs font-semibold', w + 1 === week && !finished ? 'text-fg' : 'text-muted')}>
-                  Неделя {w + 1}
-                </p>
-              </div>
+          <div className="mt-3 flex gap-1.5" aria-hidden="true">
+            {Array.from({ length: WEEKLY_GOAL }, (_, i) => (
+              <div key={i} className={cn('h-2 flex-1 rounded-full', i < thisWeek ? 'bg-accent' : 'bg-surface-2')} />
             ))}
           </div>
-          {finished && (
-            <p className="mt-3 text-[15px] text-muted">
-              Все 8 тренировок выполнены. Можно продолжать на уровне 4-й недели и менять нагрузку по рекомендациям.
-            </p>
-          )}
         </Card>
       </section>
 
@@ -178,8 +146,6 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
         <span className="flex-1 font-semibold">История тренировок</span>
         <ChevronRight className="size-5 text-muted" />
       </button>
-
-      <ScopeNotice className="mt-6" />
 
       <Sheet open={safetyOpen} onClose={() => setSafetyOpen(false)} title="Перед первой тренировкой">
         <SafetyRules />

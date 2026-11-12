@@ -25,26 +25,22 @@ const YES_NO = [
   { value: 'yes' as const, label: 'Да' },
 ]
 
-function rpeColor(value: number): string {
-  if (value <= 6) return 'bg-accent text-accent-fg'
-  if (value <= 8) return 'bg-warning text-bg'
-  return 'bg-danger text-bg'
-}
 
 export function FeedbackView({ active, onFinished }: { active: ActiveWorkout; onFinished: (sessionId: string) => void }) {
   const [rpe, setRpe] = useState<number | null>(null)
-  const { session, stopping } = active
-  const [pain, setPain] = useState<'yes' | 'no' | null>(stopping ? null : 'no')
-  const [dizziness, setDizziness] = useState<'yes' | 'no' | null>(stopping ? null : 'no')
+  const { session } = active
+  const nothingDone = session.exercises.every((e) => e.sets.length === 0)
+  const stopping = active.stopping || nothingDone
+  const askExplicitly = stopping || session.exercises.some((e) => e.skipped?.reason === 'pain')
+  const [pain, setPain] = useState<'yes' | 'no' | null>(askExplicitly ? null : 'no')
   const [notes, setNotes] = useState('')
-  const answered = rpe !== null && pain !== null && dizziness !== null
+  const answered = rpe !== null && pain !== null
   const volume = sessionVolume(session)
   const sets = session.exercises.reduce((sum, e) => sum + e.sets.length, 0)
-  const symptomatic = pain === 'yes' || dizziness === 'yes'
 
   const save = () => {
-    if (rpe === null || pain === null || dizziness === null) return
-    finish({ rpe, pain: pain === 'yes', dizzinessOrNausea: dizziness === 'yes', notes })
+    if (rpe === null || pain === null) return
+    finish({ rpe, pain: pain === 'yes', notes })
     onFinished(session.id)
   }
 
@@ -60,13 +56,6 @@ export function FeedbackView({ active, onFinished }: { active: ActiveWorkout; on
           </p>
         </div>
 
-        {stopping && (
-          <p className="rounded-2xl bg-warning-soft p-4 text-[15px] leading-snug">
-            Правильное решение. Посидите или полежите, пока самочувствие не нормализуется. Если симптомы сохраняются —
-            обратитесь к врачу.
-          </p>
-        )}
-
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Насколько тяжело было в целом?</h2>
           <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Оценка нагрузки RPE">
@@ -79,7 +68,7 @@ export function FeedbackView({ active, onFinished }: { active: ActiveWorkout; on
                 onClick={() => setRpe(value)}
                 className={cn(
                   'tabular h-14 rounded-2xl text-xl font-bold transition-colors',
-                  rpe === value ? rpeColor(value) : 'bg-surface-2 text-fg',
+                  rpe === value ? 'bg-fg text-bg' : 'bg-surface-2 text-fg',
                 )}
               >
                 {value}
@@ -96,15 +85,9 @@ export function FeedbackView({ active, onFinished }: { active: ActiveWorkout; on
           <Segmented value={pain} options={YES_NO} onChange={setPain} label="Боль или дискомфорт" />
         </section>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Было головокружение или тошнота?</h2>
-          <Segmented value={dizziness} options={YES_NO} onChange={setDizziness} label="Головокружение или тошнота" />
-        </section>
-
-        {symptomatic && (
+        {pain === 'yes' && (
           <p className="rounded-2xl bg-danger-soft p-4 text-[15px] leading-snug">
-            Нагрузка не будет повышаться. Если симптомы повторяются от тренировки к тренировке, обсудите программу с
-            врачом или реабилитологом.
+            Нагрузка не будет повышаться. Если боль повторяется от тренировки к тренировке, обратитесь к специалисту.
           </p>
         )}
 

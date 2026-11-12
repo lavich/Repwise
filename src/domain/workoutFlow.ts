@@ -1,6 +1,6 @@
 import { EXERCISES } from './exercises'
-import { completedSessions, nextWorkoutId, programWeekAfter } from './program'
-import { blocksIncrease, isActionable, isIncrease, suggestProgression } from './progression'
+import { nextWorkoutId } from './program'
+import { blocksIncrease, isActionable, suggestProgression } from './progression'
 import {
   completeSession,
   createSession,
@@ -9,7 +9,6 @@ import {
   setTechnique,
   skipExercise,
   stopSession,
-  switchToAlternative,
 } from './session'
 import type {
   ActiveWorkout,
@@ -39,7 +38,7 @@ export function completeSet(
   const session = recordSet(active.session, active.exerciseIndex, completedReps, now.toISOString())
   const exercise = session.exercises[active.exerciseIndex]
   if (exercise && exercise.sets.length < exercise.targetSets) {
-    const rest = EXERCISES[exercise.performedExerciseId].restSeconds ?? restSeconds
+    const rest = EXERCISES[exercise.exerciseId].restSeconds ?? restSeconds
     return { ...active, session, phase: 'rest', restEndsAt: new Date(now.getTime() + rest * 1000).toISOString() }
   }
   return { ...active, session, phase: 'technique', restEndsAt: null }
@@ -62,10 +61,6 @@ export function skipCurrentExercise(active: ActiveWorkout, skip: ExerciseSkip): 
   return advance({ ...active, session: skipExercise(active.session, active.exerciseIndex, skip) })
 }
 
-export function switchCurrentToAlternative(active: ActiveWorkout): ActiveWorkout {
-  return { ...active, session: switchToAlternative(active.session, active.exerciseIndex) }
-}
-
 export function requestStop(active: ActiveWorkout): ActiveWorkout {
   return { ...active, phase: 'feedback', restEndsAt: null, stopping: true }
 }
@@ -75,7 +70,6 @@ export function startWorkout(data: AppData, sessionId: string, now: string, work
   const session = createSession({
     id: sessionId,
     workoutId: workoutId ?? nextWorkoutId(data.sessions),
-    programWeek: programWeekAfter(completedSessions(data.sessions).length),
     progression: data.progression,
     now,
   })
@@ -93,30 +87,24 @@ export function finishWorkout(data: AppData, feedback: SessionFeedback, now: str
   const session = completed
     ? completeSession(active.session, feedback, now)
     : stopSession(active.session, feedback, now)
-  const sessions = [...data.sessions, session]
-  // Workouts alternate, so this workout's exercises come back after the next
-  // (other) workout: compare against the week of the session after that one.
-  const nextPlannedWeek = programWeekAfter(completedSessions(sessions).length + 1)
-  const suggestions = suggestProgression(session, data.progression, nextPlannedWeek)
-  const touched = new Set(suggestions.map((s) => s.exerciseId))
+  const suggestions = suggestProgression(session)
+  const performed = new Set(session.exercises.filter((e) => e.sets.length > 0).map((e) => e.exerciseId))
   const blocked = blocksIncrease(session)
   const kept = data.pendingSuggestions.filter(
-    (s) => !touched.has(s.exerciseId) && !(blocked && isIncrease(s.kind)),
+    (s) => !performed.has(s.exerciseId) && !(blocked && s.kind === 'step-up'),
   )
+  const waiting = new Set(kept.map((s) => s.exerciseId))
+  const added = suggestions.filter((s) => performed.has(s.exerciseId) || !waiting.has(s.exerciseId))
   return {
     ...data,
-    sessions,
+    sessions: [...data.sessions, session],
     activeWorkout: null,
-    pendingSuggestions: [...kept, ...suggestions],
+    pendingSuggestions: [...kept, ...added],
   }
 }
 
 export function pendingActionableSuggestions(data: AppData): ProgressionSuggestion[] {
   return data.pendingSuggestions.filter(
-    (s) =>
-      isActionable(s) &&
-      data.progression[s.exerciseId].level === s.current.level &&
-      data.progression[s.exerciseId].band === s.current.band &&
-      data.progression[s.exerciseId].useAlternative === s.current.useAlternative,
+    (s) => isActionable(s) && data.progression[s.exerciseId].stepId === s.currentStepId,
   )
 }

@@ -8,15 +8,14 @@ const NOW = '2026-11-12T10:00:00.000Z'
 function dataWithHistory() {
   let data = startWorkout(createInitialData(NOW), 's1', NOW)
   data = { ...data, activeWorkout: requestStop(data.activeWorkout!) }
-  data = finishWorkout(data, { rpe: 7, pain: false, dizzinessOrNausea: false, notes: 'заметка' }, NOW)
+  data = finishWorkout(data, { rpe: 7, pain: false, notes: 'заметка' }, NOW)
   return startWorkout(data, 's2', NOW)
 }
 
 describe('import/export', () => {
   it('round-trips history through JSON without the active workout', () => {
     const data = dataWithHistory()
-    const result = parseBackup(serializeBackup(createBackup(data, NOW)), NOW)
-    expect(result).toEqual({ ok: true, data: { ...data, activeWorkout: null } })
+    expect(parseBackup(serializeBackup(createBackup(data, NOW)), NOW)).toEqual({ ok: true, data: { ...data, activeWorkout: null } })
   })
 
   it('rejects text that is not JSON', () => {
@@ -31,20 +30,29 @@ describe('import/export', () => {
     const backup = createBackup(dataWithHistory(), NOW)
     const session = backup.data.sessions[0]!
     const broken = { ...backup, data: { ...backup.data, sessions: [{ ...session, feedback: { ...session.feedback!, rpe: 42 } }] } }
-    const result = parseBackup(JSON.stringify(broken), NOW)
-    expect(result.ok).toBe(false)
+    expect(parseBackup(JSON.stringify(broken), NOW).ok).toBe(false)
+  })
+
+  it('rejects a backup with an unknown exercise', () => {
+    const raw = serializeBackup(createBackup(dataWithHistory(), NOW)).replace('"band-squat"', '"leg-press"')
+    expect(parseBackup(raw, NOW).ok).toBe(false)
+  })
+
+  it('rejects a step that is not on the exercise ladder', () => {
+    const backup = createBackup(dataWithHistory(), NOW)
+    const broken = { ...backup, data: { ...backup.data, progression: { ...backup.data.progression, 'push-up': { stepId: 'L3', updatedAt: NOW } } } }
+    expect(parseBackup(JSON.stringify(broken), NOW)).toMatchObject({ ok: false, error: expect.stringContaining('ступень') })
   })
 
   it('fills in exercises missing from an older backup', () => {
     const backup = createBackup(dataWithHistory(), NOW)
-    const { 'heel-slides': _removed, ...progression } = backup.data.progression
+    const { 'dead-bug': _removed, ...progression } = backup.data.progression
     const result = parseBackup(JSON.stringify({ ...backup, data: { ...backup.data, progression } }), NOW)
-    expect(result.ok && result.data.progression['heel-slides'].level).toBe(1)
+    expect(result.ok && result.data.progression['dead-bug'].stepId).toBe('arms-legs')
   })
 
-  it('rejects a backup with an unknown exercise', () => {
-    const backup = createBackup(dataWithHistory(), NOW)
-    const raw = serializeBackup(backup).replace('"banded-squat"', '"push-up"')
-    expect(parseBackup(raw, NOW).ok).toBe(false)
+  it('rejects a backup of the previous program with a clear message', () => {
+    const old = JSON.stringify({ app: 'repwise', exportedAt: NOW, data: { schemaVersion: 1 } })
+    expect(parseBackup(old, NOW)).toMatchObject({ ok: false, error: expect.stringContaining('прежней программы') })
   })
 })

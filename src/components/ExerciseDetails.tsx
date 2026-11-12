@@ -1,4 +1,4 @@
-import { AlertTriangle, Wind, XCircle } from 'lucide-react'
+import { Lightbulb, Wind, XCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Exercise } from '@/domain/types'
 
@@ -39,11 +39,11 @@ export function ExerciseCautions({ exercise }: { exercise: Exercise }) {
           ))}
         </ul>
       </Section>
-      <Section title="Безопасность">
-        <ul className="space-y-2 rounded-2xl bg-warning-soft p-4">
-          {exercise.safety.map((item) => (
+      <Section title="Советы">
+        <ul className="space-y-2 rounded-2xl bg-surface-2 p-4">
+          {exercise.tips.map((item) => (
             <li key={item} className="flex gap-2.5 text-[15px] leading-snug">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+              <Lightbulb className="mt-0.5 size-4 shrink-0 text-accent" />
               {item}
             </li>
           ))}
@@ -70,9 +70,6 @@ export function ExerciseDetails({ exercise }: { exercise: Exercise }) {
           <Wind className="mt-0.5 size-5 shrink-0 text-info" />
           {exercise.breathing}
         </p>
-      </Section>
-      <Section title="Оборудование">
-        <p className="text-base leading-snug">{exercise.equipmentNote}</p>
       </Section>
       <ExerciseCautions exercise={exercise} />
     </div>

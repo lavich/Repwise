@@ -13,3 +13,13 @@ export function fillMissingExercises(data: unknown, now: string): unknown {
   for (const id of EXERCISE_IDS) progression[id] ??= initialExerciseProgression(id, now)
   return { ...data, progression }
 }
+
+export function schemaVersionOf(data: unknown): number | null {
+  return isRecord(data) && typeof data.schemaVersion === 'number' ? data.schemaVersion : null
+}
+
+export function themeOf(data: unknown): 'dark' | 'light' | null {
+  if (!isRecord(data) || !isRecord(data.settings)) return null
+  const theme = data.settings.theme
+  return theme === 'dark' || theme === 'light' ? theme : null
+}

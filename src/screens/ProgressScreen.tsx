@@ -7,13 +7,13 @@ import { Badge } from '@/components/ui/badge'
 import { Card, SectionTitle } from '@/components/ui/card'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
-import { EXERCISES } from '@/domain/exercises'
+import { EXERCISES, stepLabel } from '@/domain/exercises'
 import { WORKOUTS } from '@/domain/program'
 import { sessionVolume } from '@/domain/session'
 import { exerciseHistory, finishedSessions, rpeSeries, sessionDays, volumeSeries } from '@/domain/stats'
 import { EXERCISE_IDS, type ExerciseId, type WorkoutSession } from '@/domain/types'
 import { cn } from '@/lib/cn'
-import { formatDay, formatDuration, formatPrescription, formatShortDay, formatTime, formatWeekday, SKIP_REASON_LABELS } from '@/lib/format'
+import { formatDay, formatDuration, formatRepRange, formatShortDay, formatTime, formatWeekday, SKIP_REASON_LABELS } from '@/lib/format'
 import { useAppData } from '@/state/store'
 
 type View = 'overview' | 'history'
@@ -39,7 +39,7 @@ export function ProgressScreen({ view, onViewChange }: { view: View; onViewChang
 
 function Overview() {
   const { sessions } = useAppData()
-  const [exerciseId, setExerciseId] = useState<ExerciseId>('banded-squat')
+  const [exerciseId, setExerciseId] = useState<ExerciseId>('band-squat')
   const history = exerciseHistory(sessions, exerciseId)
   const performed = history.filter((h) => !h.skipped)
 
@@ -61,12 +61,8 @@ function Overview() {
             label="RPE по тренировкам"
             unit="RPE"
             yMax={10}
-            bands={[
-              { from: 6.5, to: 8.5, className: 'fill-warning-soft' },
-              { from: 8.5, to: 10, className: 'fill-danger-soft' },
-            ]}
           />
-          <p className="mt-2 text-[13px] text-muted">До 6 — комфортно, 7–8 — закрепляем, 9–10 — снижаем.</p>
+          <p className="mt-2 text-[13px] text-muted">Для роста мышц подходы близко к отказу — RPE 8–9 это норма.</p>
         </Card>
       </section>
 
@@ -103,13 +99,13 @@ function Overview() {
             label={`Повторы: ${EXERCISES[exerciseId].nameRu}`}
             unit="повт."
           />
-          {EXERCISES[exerciseId].equipment.kind === 'band' && performed.length > 0 && (
+          {performed.length > 0 && (
             <div>
-              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">Лента</p>
+              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">Ступень</p>
               <div className="flex flex-wrap gap-1.5">
                 {performed.map((h) => (
                   <Badge key={h.sessionId} tone="band" className="tabular">
-                    {formatShortDay(h.date)} · {h.band}
+                    {formatShortDay(h.date)} · {stepLabel(exerciseId, h.stepId)}
                   </Badge>
                 ))}
               </div>
@@ -132,8 +128,7 @@ function Overview() {
                           {h.reps.join(' · ')}
                           <span className="font-normal text-muted">
                             {' '}
-                            / {formatPrescription(h.targetSets, h.targetReps)}
-                            {h.performedExerciseId !== exerciseId ? ' (замена)' : ''}
+                            / {formatRepRange(h.repMin, h.repMax, EXERCISES[exerciseId].perSide)} · {stepLabel(exerciseId, h.stepId)}
                           </span>
                         </span>
                       )}
@@ -166,16 +161,16 @@ function HistoryList() {
     <>
       <Card className="divide-y divide-border p-0">
         {list.map((s) => {
-          const symptoms = s.feedback && (s.feedback.pain || s.feedback.dizzinessOrNausea)
+          const pain = s.feedback?.pain === true
           return (
             <button key={s.id} type="button" onClick={() => setSelected(s)} className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left">
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{formatWeekday(s.startedAt)}</span>
                 <span className="block text-[13px] text-muted">
-                  {WORKOUTS[s.workoutId].title} · неделя {s.programWeek} · {sessionVolume(s)} повт.
+                  {WORKOUTS[s.workoutId].title} · {sessionVolume(s)} повт.
                 </span>
               </span>
-              {symptoms && <AlertTriangle className="size-4 text-warning" aria-label="Были симптомы" />}
+              {pain && <AlertTriangle className="size-4 text-warning" aria-label="Была боль" />}
               {s.status === 'stopped' && <Badge tone="warning">Стоп</Badge>}
               {s.feedback && <Badge>RPE {s.feedback.rpe}</Badge>}
               <ChevronRight className="size-5 shrink-0 text-muted" />
@@ -202,24 +197,21 @@ function SessionDetails({ session }: { session: WorkoutSession }) {
         <div className="flex flex-wrap gap-2">
           <Badge>RPE {fb.rpe}</Badge>
           <Badge tone={fb.pain ? 'danger' : 'neutral'}>{fb.pain ? 'Была боль' : 'Без боли'}</Badge>
-          <Badge tone={fb.dizzinessOrNausea ? 'danger' : 'neutral'}>
-            {fb.dizzinessOrNausea ? 'Головокружение/тошнота' : 'Без головокружения'}
-          </Badge>
         </div>
       )}
       {fb?.notes && <p className="rounded-2xl bg-surface-2 p-4 text-[15px] leading-snug">{fb.notes}</p>}
       <ul className="divide-y divide-border">
         {session.exercises.map((e) => (
-          <li key={e.plannedExerciseId} className="py-3">
+          <li key={e.exerciseId} className="py-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-semibold">{EXERCISES[e.performedExerciseId].nameRu}</p>
-              {e.band && <Badge tone="band">{e.band}</Badge>}
+              <p className="font-semibold">{EXERCISES[e.exerciseId].nameRu}</p>
+              <Badge tone="band">{stepLabel(e.exerciseId, e.stepId)}</Badge>
             </div>
             <p className="tabular mt-0.5 text-[15px] text-muted">
               {e.skipped
                 ? `Пропущено: ${SKIP_REASON_LABELS[e.skipped.reason].toLowerCase()}${e.skipped.note ? ` — ${e.skipped.note}` : ''}`
                 : e.sets.length > 0
-                  ? `${e.sets.map((s) => s.completedReps).join(' · ')} из ${formatPrescription(e.targetSets, e.targetReps)}${e.goodTechnique === false ? ' · техника страдала' : ''}`
+                  ? `${e.sets.map((s) => s.completedReps).join(' · ')} из ${e.targetSets} × ${formatRepRange(e.repMin, e.repMax, e.perSide)}${e.goodTechnique === false ? ' · техника страдала' : ''}`
                   : 'Не выполнялось'}
             </p>
           </li>
