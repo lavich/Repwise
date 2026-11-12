@@ -38,4 +38,4 @@
 
 - [x] 6.1 README: описание программы. Проверка: прочитано.
 - [x] 6.2 Полная проверка `npm run check` и `openspec validate --all --strict`; Playwright-скриншоты главной, тренировки, библиотеки, прогресса на 390 px и 1280 px, временный скрипт удалён. Проверка: обе команды завершаются с кодом 0.
-- [ ] 6.3 После архивации: обновить разделы Purpose основных спецификаций `safety`, `workout-program`, `progression`. Проверка: `openspec validate --all --strict`.
+- [x] 6.3 После архивации: обновить разделы Purpose основных спецификаций `safety`, `workout-program`, `progression`. Проверка: `openspec validate --all --strict`.
