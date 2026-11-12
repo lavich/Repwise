@@ -15,7 +15,7 @@ export function BottomNav({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) =>
   return (
     <nav
       aria-label="Основная навигация"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/90 backdrop-blur-xl"
+      className="shrink-0 border-t border-border bg-bg"
     >
       <ul className="mx-auto flex max-w-lg px-2 pt-1 pb-[max(env(safe-area-inset-bottom),8px)]">
         {ITEMS.map(({ tab: item, label, icon: Icon }) => {

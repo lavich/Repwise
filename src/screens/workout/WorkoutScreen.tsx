@@ -1,5 +1,5 @@
 import { SkipForward, Square } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/ui/progress'
 import { isExerciseDone } from '@/domain/session'
@@ -8,6 +8,7 @@ import type { ActiveWorkout } from '@/domain/types'
 import { requestStop } from '@/domain/workoutFlow'
 import { useWakeLock } from '@/lib/hooks'
 import { updateActive } from '@/state/actions'
+import { BottomActionsSlot } from './bottomActionsSlot'
 import { ExerciseIntro } from './ExerciseIntro'
 import { FeedbackView } from './FeedbackView'
 import { RestView } from './RestView'
@@ -19,6 +20,8 @@ import { TechniqueView } from './TechniqueView'
 export function WorkoutScreen({ active, onFinished }: { active: ActiveWorkout; onFinished: (sessionId: string) => void }) {
   const [stopOpen, setStopOpen] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
+  const [footer, setFooter] = useState<HTMLDivElement | null>(null)
+  const scrollRef = useRef<HTMLElement>(null)
   useWakeLock(active.phase !== 'feedback')
 
   const { session, exerciseIndex, phase } = active
@@ -28,13 +31,13 @@ export function WorkoutScreen({ active, onFinished }: { active: ActiveWorkout; o
   const inFeedback = phase === 'feedback'
 
   useEffect(() => {
-    window.scrollTo(0, 0)
+    scrollRef.current?.scrollTo(0, 0)
   }, [exerciseIndex, phase])
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
-      <header className="pt-safe sticky top-0 z-30 border-b border-border bg-bg/90 px-4 pb-3 backdrop-blur-xl">
-        <div className="flex h-12 items-center justify-between gap-2">
+    <div className="flex h-dvh flex-col">
+      <header className="pt-safe shrink-0 border-b border-border bg-bg px-4 pb-3">
+        <div className="mx-auto flex h-12 max-w-lg items-center justify-between gap-2">
           {!inFeedback ? (
             <Button variant="danger" size="sm" className="rounded-full" onClick={() => setStopOpen(true)}>
               <Square className="size-4 fill-current" />
@@ -57,20 +60,25 @@ export function WorkoutScreen({ active, onFinished }: { active: ActiveWorkout; o
             <span />
           )}
         </div>
-        <ProgressBar value={doneCount} max={total} label="Выполнено упражнений" className="mt-2 h-1.5" />
+        <ProgressBar value={doneCount} max={total} label="Выполнено упражнений" className="mx-auto mt-2 h-1.5 max-w-lg" />
       </header>
 
-      <main className="flex flex-1 flex-col px-4 pt-4">
-        {phase === 'intro' && exercise && <ExerciseIntro active={active} exercise={exercise} />}
-        {phase === 'set' && exercise && (
-          <SetView key={`${exerciseIndex}-${exercise.sets.length}`} active={active} exercise={exercise} />
-        )}
-        {phase === 'rest' && exercise && (
-          <RestView key={`${exerciseIndex}-${exercise.sets.length}`} active={active} exercise={exercise} />
-        )}
-        {phase === 'technique' && exercise && <TechniqueView exercise={exercise} />}
-        {inFeedback && <FeedbackView active={active} onFinished={onFinished} />}
-      </main>
+      <BottomActionsSlot.Provider value={footer}>
+        <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 pt-4">
+            {phase === 'intro' && exercise && <ExerciseIntro active={active} exercise={exercise} />}
+            {phase === 'set' && exercise && (
+              <SetView key={`${exerciseIndex}-${exercise.sets.length}`} active={active} exercise={exercise} />
+            )}
+            {phase === 'rest' && exercise && (
+              <RestView key={`${exerciseIndex}-${exercise.sets.length}`} active={active} exercise={exercise} />
+            )}
+            {phase === 'technique' && exercise && <TechniqueView exercise={exercise} />}
+            {inFeedback && <FeedbackView active={active} onFinished={onFinished} />}
+          </div>
+        </main>
+      </BottomActionsSlot.Provider>
+      <div ref={setFooter} className="shrink-0" />
 
       <StopSheet
         open={stopOpen}
