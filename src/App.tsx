@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BottomNav, type Tab } from '@/components/BottomNav'
 import { UpdatePrompt } from '@/components/UpdatePrompt'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -20,6 +20,7 @@ export function App() {
   const theme = data.settings.theme
   const inWorkout = data.activeWorkout !== null
   const saveFailed = useSaveFailed()
+  const scrollRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -28,6 +29,7 @@ export function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
+    scrollRef.current?.scrollTo(0, 0)
   }, [tab, summarySessionId, inWorkout])
 
   let screen
@@ -45,19 +47,21 @@ export function App() {
     )
   } else {
     screen = (
-      <div className="mx-auto min-h-dvh max-w-lg">
-        <main className="pt-safe px-4 pb-[calc(env(safe-area-inset-bottom)+96px)]">
-          {tab === 'home' && (
-            <DashboardScreen
-              onOpenHistory={() => {
-                setProgressView('history')
-                setTab('progress')
-              }}
-            />
-          )}
-          {tab === 'library' && <LibraryScreen />}
-          {tab === 'progress' && <ProgressScreen view={progressView} onViewChange={setProgressView} />}
-          {tab === 'settings' && <SettingsScreen />}
+      <div className="flex h-dvh flex-col">
+        <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="pt-safe mx-auto max-w-lg px-4 pb-8">
+            {tab === 'home' && (
+              <DashboardScreen
+                onOpenHistory={() => {
+                  setProgressView('history')
+                  setTab('progress')
+                }}
+              />
+            )}
+            {tab === 'library' && <LibraryScreen />}
+            {tab === 'progress' && <ProgressScreen view={progressView} onViewChange={setProgressView} />}
+            {tab === 'settings' && <SettingsScreen />}
+          </div>
         </main>
         <BottomNav tab={tab} onChange={setTab} />
       </div>
