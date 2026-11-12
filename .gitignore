@@ -1,0 +1,5 @@
+!.agents/
+!.agents/**
+!.claude/
+.claude/*
+!.claude/skills/
