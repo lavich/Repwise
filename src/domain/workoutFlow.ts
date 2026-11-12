@@ -88,16 +88,18 @@ export function finishWorkout(data: AppData, feedback: SessionFeedback, now: str
     ? completeSession(active.session, feedback, now)
     : stopSession(active.session, feedback, now)
   const suggestions = suggestProgression(session)
-  const touched = new Set(suggestions.map((s) => s.exerciseId))
+  const performed = new Set(session.exercises.filter((e) => e.sets.length > 0).map((e) => e.exerciseId))
   const blocked = blocksIncrease(session)
   const kept = data.pendingSuggestions.filter(
-    (s) => !touched.has(s.exerciseId) && !(blocked && s.kind === 'step-up'),
+    (s) => !performed.has(s.exerciseId) && !(blocked && s.kind === 'step-up'),
   )
+  const waiting = new Set(kept.map((s) => s.exerciseId))
+  const added = suggestions.filter((s) => performed.has(s.exerciseId) || !waiting.has(s.exerciseId))
   return {
     ...data,
     sessions: [...data.sessions, session],
     activeWorkout: null,
-    pendingSuggestions: [...kept, ...suggestions],
+    pendingSuggestions: [...kept, ...added],
   }
 }
 

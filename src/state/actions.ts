@@ -1,6 +1,6 @@
 import { applySuggestion, setStepManually } from '@/domain/progression'
 import type { ActiveWorkout, AppData, ExerciseId, SessionFeedback, UserSettings, WorkoutId } from '@/domain/types'
-import { finishWorkout, startWorkout } from '@/domain/workoutFlow'
+import { finishWorkout, pendingActionableSuggestions, startWorkout } from '@/domain/workoutFlow'
 import { createInitialData } from '@/storage/storage'
 import { newId, nowIso, updateData } from './store'
 
@@ -22,7 +22,7 @@ export function discardActive() {
 
 export function confirmSuggestion(id: string) {
   updateData((data) => {
-    const suggestion = data.pendingSuggestions.find((s) => s.id === id)
+    const suggestion = pendingActionableSuggestions(data).find((s) => s.id === id)
     if (!suggestion) return data
     return {
       ...data,

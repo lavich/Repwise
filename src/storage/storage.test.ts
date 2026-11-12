@@ -4,6 +4,7 @@ import { startWorkout } from '@/domain/workoutFlow'
 import {
   createInitialData,
   isLegacyPayload,
+  storageEventAction,
   LEGACY_V1_KEY,
   loadData,
   saveData,
@@ -75,5 +76,11 @@ describe('data of the previous program', () => {
     expect(isLegacyPayload(JSON.stringify(createInitialData(NOW)))).toBe(false)
     expect(isLegacyPayload(null)).toBe(false)
     expect(isLegacyPayload('{broken')).toBe(false)
+  })
+
+  it('writes the current data back when an old tab overwrites it', () => {
+    expect(storageEventAction(STORAGE_KEY, legacy)).toBe('restore')
+    expect(storageEventAction(STORAGE_KEY, JSON.stringify(createInitialData(NOW)))).toBe('reload')
+    expect(storageEventAction('other', legacy)).toBe('ignore')
   })
 })

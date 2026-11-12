@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { AppData } from '@/domain/types'
-import { createInitialData, isLegacyPayload, loadData, saveData, STORAGE_KEY } from '@/storage/storage'
+import { createInitialData, loadData, saveData, storageEventAction } from '@/storage/storage'
 
 type Listener = () => void
 
@@ -22,12 +22,21 @@ function notify() {
   listeners.forEach((listener) => listener())
 }
 
+function persist() {
+  try {
+    saveData(window.localStorage, data)
+    saveFailed = false
+  } catch (error) {
+    console.error('Failed to persist data', error)
+    saveFailed = true
+  }
+}
+
 window.addEventListener('storage', (event) => {
-  // A tab still running the previous version writes old-format data; adopting
-  // it would discard the current program, so the current data is kept.
-  if (event.key !== STORAGE_KEY || isLegacyPayload(event.newValue)) return
-  data = readStoredData()
-  notify()
+  const action = storageEventAction(event.key, event.newValue)
+  if (action === 'restore') persist()
+  if (action === 'reload') data = readStoredData()
+  if (action !== 'ignore') notify()
 })
 
 function subscribe(listener: Listener) {
@@ -43,13 +52,7 @@ export function updateData(update: (current: AppData) => AppData): void {
   const next = update(data)
   if (next === data) return
   data = next
-  try {
-    saveData(window.localStorage, data)
-    saveFailed = false
-  } catch (error) {
-    console.error('Failed to persist data', error)
-    saveFailed = true
-  }
+  persist()
   notify()
 }
 

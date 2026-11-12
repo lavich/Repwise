@@ -17,7 +17,7 @@ import {
 const NOW = new Date('2026-11-12T10:00:00.000Z')
 const easy: SessionFeedback = { rpe: 7, pain: false, notes: '' }
 
-function runWorkout(data: AppData, id: string, reps: 'top' | 'bottom', feedback = easy, stopAtTechnique = false): AppData {
+function runWorkout(data: AppData, id: string, reps: 'top' | 'bottom' | 'low', feedback = easy, stopAtTechnique = false): AppData {
   const started = startWorkout(data, id, NOW.toISOString())
   let active = started.activeWorkout
   if (!active) throw new Error('workout did not start')
@@ -25,7 +25,7 @@ function runWorkout(data: AppData, id: string, reps: 'top' | 'bottom', feedback 
     if (active.phase === 'intro') active = beginExercise(active)
     else if (active.phase === 'set') {
       const exercise = active.session.exercises[active.exerciseIndex]!
-      active = completeSet(active, reps === 'top' ? exercise.repMax : exercise.repMin, 90, NOW)
+      active = completeSet(active, reps === 'top' ? exercise.repMax : reps === 'low' ? exercise.repMin - 1 : exercise.repMin, 90, NOW)
     } else if (active.phase === 'rest') active = finishRest(active)
     else active = stopAtTechnique ? requestStop(active) : answerTechnique(active, true)
   }
@@ -83,5 +83,28 @@ describe('workout flow', () => {
   it('moves to the next exercise after a skip', () => {
     const data = startWorkout(createInitialData(NOW.toISOString()), 's1', NOW.toISOString())
     expect(skipCurrentExercise(data.activeWorkout!, { reason: 'pain' })).toMatchObject({ exerciseIndex: 1, phase: 'intro' })
+  })
+
+  it('keeps a pending suggestion when the next workout never reaches the exercise', () => {
+    let data = runWorkout(createInitialData(NOW.toISOString()), 's1', 'low')
+    const pushUp = pendingActionableSuggestions(data).find((s) => s.exerciseId === 'push-up')
+    expect(pushUp?.kind).toBe('step-down')
+    const next = startWorkout(data, 's2', NOW.toISOString())
+    let active = next.activeWorkout!
+    while (active.phase !== 'feedback') active = skipCurrentExercise(active, { reason: 'equipment' })
+    data = finishWorkout({ ...next, activeWorkout: active }, easy, NOW.toISOString())
+    expect(pendingActionableSuggestions(data).find((s) => s.exerciseId === 'push-up')).toEqual(pushUp)
+  })
+
+  it('keeps step-downs after a workout with pain', () => {
+    const data = runWorkout(createInitialData(NOW.toISOString()), 's1', 'low', { ...easy, pain: true })
+    const kinds = new Set(pendingActionableSuggestions(data).map((s) => s.kind))
+    expect([...kinds]).toEqual(['step-down'])
+  })
+
+  it('hides a suggestion once the step was changed another way', () => {
+    const data = runWorkout(createInitialData(NOW.toISOString()), 's1', 'top')
+    const changed = { ...data, progression: { ...data.progression, 'band-squat': { stepId: 'L3', updatedAt: NOW.toISOString() } } }
+    expect(pendingActionableSuggestions(changed).some((s) => s.exerciseId === 'band-squat')).toBe(false)
   })
 })

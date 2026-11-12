@@ -50,6 +50,16 @@ function startFromLegacy(storage: KeyValueStorage, raw: string, json: unknown, n
   return theme ? { ...initial, settings: { ...initial.settings, theme } } : initial
 }
 
+export type StorageEventAction = 'ignore' | 'reload' | 'restore'
+
+// A tab still running the previous version writes old-format data over the
+// current one; the current data has to be written back, otherwise the next
+// load would treat the stored value as the previous program and start over.
+export function storageEventAction(key: string | null, newValue: string | null): StorageEventAction {
+  if (key !== STORAGE_KEY) return 'ignore'
+  return isLegacyPayload(newValue) ? 'restore' : 'reload'
+}
+
 export function isLegacyPayload(raw: string | null): boolean {
   if (raw === null) return false
   try {
