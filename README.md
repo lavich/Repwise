@@ -13,10 +13,14 @@ npm run build && npm run preview -- --host   # продакшен-сборка �
 
 Иконки генерируются из `public/favicon.svg`: `npm run icons`.
 
+## Публикация
+
+Каждый пуш в `main` проходит проверку (`npm run check`) и публикуется на GitHub Pages: https://lavich.github.io/Repwise/. Pull request проходит ту же проверку без публикации. Базовый путь сборки задаётся переменной `BASE_PATH` (по умолчанию `/`).
+
 ## Установка на iPhone
 
-1. Опубликуйте `dist/` на любом статическом HTTPS-хостинге (Netlify, Vercel, Cloudflare Pages, GitHub Pages). Service worker работает только по HTTPS или на `localhost`.
-2. Откройте адрес в Safari → «Поделиться» → «На экран „Домой“».
+1. Откройте https://lavich.github.io/Repwise/ в Safari (или опубликуйте `dist/` на другом HTTPS-хостинге — service worker работает только по HTTPS или на `localhost`).
+2. «Поделиться» → «На экран „Домой“».
 3. Запустите приложение с экрана «Домой» хотя бы раз онлайн — после этого оно работает офлайн.
 
 Данные хранятся только в `localStorage` на устройстве. Делайте резервную копию: «Настройки» → «Экспорт в JSON».
