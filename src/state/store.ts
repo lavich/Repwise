@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { AppData } from '@/domain/types'
-import { createInitialData, loadData, saveData, STORAGE_KEY } from '@/storage/storage'
+import { createInitialData, isLegacyPayload, loadData, saveData, STORAGE_KEY } from '@/storage/storage'
 
 type Listener = () => void
 
@@ -23,7 +23,9 @@ function notify() {
 }
 
 window.addEventListener('storage', (event) => {
-  if (event.key !== STORAGE_KEY) return
+  // A tab still running the previous version writes old-format data; adopting
+  // it would discard the current program, so the current data is kept.
+  if (event.key !== STORAGE_KEY || isLegacyPayload(event.newValue)) return
   data = readStoredData()
   notify()
 })

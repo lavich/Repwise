@@ -5,7 +5,7 @@ import { EXERCISES } from '@/domain/exercises'
 import type { ActiveWorkout, SessionExercise } from '@/domain/types'
 import { extendRest, finishRest } from '@/domain/workoutFlow'
 import { signalRestFinished } from '@/lib/device'
-import { formatClock } from '@/lib/format'
+import { formatClock, formatRepRange } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { updateActive } from '@/state/actions'
 import { useAppData } from '@/state/store'
@@ -19,7 +19,7 @@ export function RestView({ active, exercise }: { active: ActiveWorkout; exercise
   const now = useNow(true)
   const endsAt = active.restEndsAt ? Date.parse(active.restEndsAt) : now
   const remaining = Math.max(0, (endsAt - now) / 1000)
-  const total = Math.max(EXERCISES[exercise.performedExerciseId].restSeconds ?? settings.restSeconds, remaining)
+  const total = Math.max(EXERCISES[exercise.exerciseId].restSeconds ?? settings.restSeconds, remaining)
   const signalled = useRef(false)
 
   useEffect(() => {
@@ -57,11 +57,11 @@ export function RestView({ active, exercise }: { active: ActiveWorkout; exercise
         <div className="text-center">
           <p className="text-[15px] text-muted">Далее</p>
           <p className="text-lg font-semibold">
-            Подход {nextSet} из {exercise.targetSets} · {exercise.targetReps} повторов
+            Подход {nextSet} из {exercise.targetSets} · {formatRepRange(exercise.repMin, exercise.repMax, exercise.perSide)} повторов
           </p>
         </div>
         <p className="max-w-xs text-center text-[15px] text-muted">
-          Дышите спокойно. Если кружится голова — сядьте и не торопитесь продолжать.
+          Дышите спокойно и восстановитесь, чтобы следующий подход был близок к отказу.
         </p>
       </div>
       <BottomActions>

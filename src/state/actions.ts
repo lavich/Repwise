@@ -1,4 +1,4 @@
-import { applySuggestion, setProgressionManually, type ManualProgressionChange } from '@/domain/progression'
+import { applySuggestion, setStepManually } from '@/domain/progression'
 import type { ActiveWorkout, AppData, ExerciseId, SessionFeedback, UserSettings, WorkoutId } from '@/domain/types'
 import { finishWorkout, startWorkout } from '@/domain/workoutFlow'
 import { createInitialData } from '@/storage/storage'
@@ -36,10 +36,10 @@ export function dismissSuggestion(id: string) {
   updateData((data) => ({ ...data, pendingSuggestions: data.pendingSuggestions.filter((s) => s.id !== id) }))
 }
 
-export function changeProgression(exerciseId: ExerciseId, change: ManualProgressionChange) {
+export function changeStep(exerciseId: ExerciseId, stepId: string) {
   updateData((data) => ({
     ...data,
-    progression: setProgressionManually(data.progression, exerciseId, change, nowIso()),
+    progression: setStepManually(data.progression, exerciseId, stepId, nowIso()),
     pendingSuggestions: data.pendingSuggestions.filter((s) => s.exerciseId !== exerciseId),
   }))
 }

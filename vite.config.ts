@@ -21,7 +21,7 @@ export default defineConfig({
       manifest: {
         name: 'Repwise — домашние тренировки',
         short_name: 'Repwise',
-        description: 'Персональная программа домашних тренировок: ноги и кор.',
+        description: 'Домашние тренировки на всё тело с лентами и собственным весом.',
         lang: 'ru',
         start_url: base,
         scope: base,

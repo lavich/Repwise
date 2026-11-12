@@ -8,32 +8,21 @@ const toPoints = (points: readonly Point[]) => points.map(([x, y]) => `${x},${y}
 
 function PropShape({ prop }: { prop: Prop }) {
   switch (prop) {
-    case 'chair':
+    case 'chair-left':
       return (
         <g className="stroke-muted" strokeWidth={4} fill="none" strokeLinecap="round">
-          <polyline points="40,52 40,126" />
-          <polyline points="40,92 72,92 72,126" />
+          <polyline points="16,52 16,126" />
+          <polyline points="16,92 48,92 48,126" />
         </g>
       )
-    case 'chair-back-right':
-      return (
-        <g className="stroke-muted" strokeWidth={4} fill="none" strokeLinecap="round">
-          <polyline points="110,54 110,126" />
-          <polyline points="110,92 136,92 136,126" />
-        </g>
-      )
-    case 'post-left':
-      return (
-        <g className="stroke-muted" strokeWidth={4} fill="none" strokeLinecap="round">
-          <polyline points="40,58 64,58" />
-          <polyline points="44,58 44,126" />
-          <polyline points="60,58 60,126" />
-        </g>
-      )
+    case 'step':
+      return <rect x={80} y={116} width={44} height={12} rx={2} className="fill-muted/50" />
     case 'mat':
       return <rect x={14} y={FLOOR_Y - 2} width={140} height={4} rx={2} className="fill-accent/40" />
-    case 'pillow':
-      return <rect x={16} y={110} width={26} height={10} rx={5} className="fill-muted/50" />
+    case 'towel-far':
+      return <rect x={130} y={FLOOR_Y - 5} width={20} height={5} rx={2} className="fill-info/60" />
+    case 'towel-near':
+      return <rect x={108} y={FLOOR_Y - 5} width={20} height={5} rx={2} className="fill-info/60" />
   }
 }
 
@@ -48,9 +37,9 @@ function Figure({ pose }: { pose: Pose }) {
         <polyline key={`near-${i}`} points={toPoints(limb)} strokeWidth={6} className="stroke-fg" />
       ))}
       <circle cx={pose.head[0]} cy={pose.head[1]} r={9} className="fill-fg" />
-      {pose.band && (
-        <polyline points={toPoints(pose.band)} strokeWidth={5} className="stroke-band" />
-      )}
+      {pose.bands?.map((line, i) => (
+        <polyline key={`band-${i}`} points={toPoints(line)} strokeWidth={3} className="stroke-band" />
+      ))}
     </g>
   )
 }

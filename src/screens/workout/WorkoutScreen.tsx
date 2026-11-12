@@ -66,7 +66,7 @@ export function WorkoutScreen({ active, onFinished }: { active: ActiveWorkout; o
       <BottomActionsSlot.Provider value={footer}>
         <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 pt-4">
-            {phase === 'intro' && exercise && <ExerciseIntro active={active} exercise={exercise} />}
+            {phase === 'intro' && exercise && <ExerciseIntro exercise={exercise} />}
             {phase === 'set' && exercise && (
               <SetView key={`${exerciseIndex}-${exercise.sets.length}`} active={active} exercise={exercise} />
             )}

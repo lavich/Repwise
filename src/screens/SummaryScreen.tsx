@@ -70,7 +70,7 @@ export function SummaryScreen({ sessionId, onClose }: { sessionId: string; onClo
                   <div key={s.id} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold">{EXERCISES[s.exerciseId].nameRu}</p>
-                      <Badge tone={s.kind === 'safety-hold' ? 'danger' : 'neutral'}>{DECISION_LABELS[s.kind]}</Badge>
+                      <Badge tone={s.kind === 'pain-hold' ? 'danger' : 'neutral'}>{DECISION_LABELS[s.kind]}</Badge>
                     </div>
                     <p className="mt-1 text-[15px] leading-snug text-muted">{s.reason}</p>
                   </div>

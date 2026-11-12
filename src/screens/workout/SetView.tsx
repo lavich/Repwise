@@ -6,22 +6,24 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { Stepper } from '@/components/ui/stepper'
-import { EXERCISES } from '@/domain/exercises'
+import { EXERCISES, stepLabel } from '@/domain/exercises'
+import { defaultReps, lastPerformance } from '@/domain/session'
 import type { ActiveWorkout, SessionExercise } from '@/domain/types'
 import { completeSet } from '@/domain/workoutFlow'
 import { unlockAudio } from '@/lib/device'
 import { cn } from '@/lib/cn'
-import { equipmentLabel } from '@/lib/format'
+import { formatRepRange } from '@/lib/format'
 import { updateActive } from '@/state/actions'
-import { getData } from '@/state/store'
+import { getData, useAppData } from '@/state/store'
 import { BottomActions } from './BottomActions'
 
 export function SetView({ active, exercise }: { active: ActiveWorkout; exercise: SessionExercise }) {
-  const info = EXERCISES[exercise.performedExerciseId]
+  const info = EXERCISES[exercise.exerciseId]
   const setNumber = exercise.sets.length + 1
-  const [reps, setReps] = useState(exercise.targetReps)
+  const { sessions } = useAppData()
+  const previous = lastPerformance(sessions, exercise.exerciseId, exercise.stepId)
+  const [reps, setReps] = useState(() => defaultReps(previous, setNumber, exercise.repMin))
   const [techniqueOpen, setTechniqueOpen] = useState(false)
-  const band = info.equipment.kind === 'band' ? exercise.band : null
 
   const submit = () => {
     unlockAudio()
@@ -40,7 +42,7 @@ export function SetView({ active, exercise }: { active: ActiveWorkout; exercise:
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl leading-tight font-bold tracking-tight">{info.nameRu}</h1>
-            <p className="mt-1 text-[15px] text-muted">{equipmentLabel(info.equipment, band)}</p>
+            <p className="mt-1 text-[15px] text-muted">Ступень: {stepLabel(exercise.exerciseId, exercise.stepId)}</p>
           </div>
           <Button variant="secondary" size="icon" className="rounded-full" onClick={() => setTechniqueOpen(true)} aria-label="Показать технику">
             <Info className="size-5" />
@@ -61,12 +63,23 @@ export function SetView({ active, exercise }: { active: ActiveWorkout; exercise:
         <p className="mt-4 text-center text-lg font-semibold">
           Подход {setNumber} из {exercise.targetSets}
         </p>
-        <p className="text-center text-[15px] text-muted">Цель: {exercise.targetReps} повторов</p>
+        <p className="tabular text-center text-[15px] text-muted">
+          Цель: {formatRepRange(exercise.repMin, exercise.repMax, exercise.perSide)} повторов, за 1–2 до отказа
+        </p>
+        {previous && (
+          <p className="tabular mt-1 text-center text-[15px]">
+            В прошлый раз: <span className="font-semibold">{previous.join(' · ')}</span>
+          </p>
+        )}
 
         <div className="my-auto py-8">
-          <Stepper value={reps} onChange={setReps} max={exercise.targetReps + 10} label="Выполнено повторов" />
-          <p className="mt-3 text-center text-[15px] text-muted">Сколько повторов сделано с хорошей техникой</p>
-          {reps < exercise.targetReps && (
+          <Stepper value={reps} onChange={setReps} max={exercise.repMax * 2} label="Выполнено повторов" />
+          <p className="mt-3 text-center text-[15px] text-muted">
+            {exercise.perSide
+              ? 'Повторы слабой стороны с хорошей техникой'
+              : 'Сколько повторов сделано с хорошей техникой'}
+          </p>
+          {reps < exercise.repMin && (
             <div className="mt-3 flex justify-center">
               <Badge tone="warning">Меньше цели — это нормально, не дожимайте через боль</Badge>
             </div>

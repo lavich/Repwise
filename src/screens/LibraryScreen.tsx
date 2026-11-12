@@ -2,14 +2,14 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { ExerciseDetails } from '@/components/ExerciseDetails'
 import { ExerciseIllustration } from '@/components/illustrations/ExerciseIllustration'
-import { ScopeNotice } from '@/components/SafetyNotice'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, SectionTitle } from '@/components/ui/card'
 import { Sheet } from '@/components/ui/sheet'
-import { EXERCISES } from '@/domain/exercises'
+import { EXERCISES, stepLabel } from '@/domain/exercises'
 import { WORKOUTS } from '@/domain/program'
 import type { ExerciseId } from '@/domain/types'
+import { formatTarget } from '@/lib/format'
 import { useAppData } from '@/state/store'
 import { ProgressionControls } from './ProgressionControls'
 
@@ -28,7 +28,7 @@ export function LibraryScreen() {
               {workout.title} · {workout.subtitle}
             </SectionTitle>
             <Card className="divide-y divide-border p-0">
-              {workout.exercises.map(({ exerciseId }) => {
+              {workout.exerciseIds.map((exerciseId) => {
                 const info = EXERCISES[exerciseId]
                 const state = data.progression[exerciseId]
                 return (
@@ -42,8 +42,9 @@ export function LibraryScreen() {
                       <span className="block truncate font-semibold">{info.nameRu}</span>
                       <span className="block truncate text-[13px] text-muted">{info.nameEn}</span>
                     </span>
-                    {state.band && <Badge tone="band">{state.band}</Badge>}
-                    <Badge>Ур. {state.level}</Badge>
+                    <Badge tone="band" className="max-w-[40%] shrink-0">
+                      <span className="truncate">{stepLabel(exerciseId, state.stepId)}</span>
+                    </Badge>
                     <ChevronRight className="size-5 shrink-0 text-muted" />
                   </button>
                 )
@@ -51,7 +52,6 @@ export function LibraryScreen() {
             </Card>
           </section>
         ))}
-        <ScopeNotice />
       </div>
 
       <Sheet open={exercise !== null} onClose={() => setSelected(null)} title={exercise?.nameRu ?? ''}>
@@ -60,6 +60,13 @@ export function LibraryScreen() {
             <div>
               <p className="text-[15px] text-muted">{exercise.nameEn}</p>
               <p className="mt-1 text-base leading-snug">{exercise.summary}</p>
+              <p className="mt-2 text-[15px]">
+                <span className="text-muted">Мышцы:</span> {exercise.muscles}
+              </p>
+              <p className="tabular text-[15px]">
+                <span className="text-muted">Подходы и повторы:</span>{' '}
+                {formatTarget(exercise.sets, exercise.repRange.min, exercise.repRange.max, exercise.perSide)}
+              </p>
             </div>
             <ExerciseIllustration exerciseId={exercise.id} title={exercise.nameRu} />
             <ProgressionControls exerciseId={exercise.id} />

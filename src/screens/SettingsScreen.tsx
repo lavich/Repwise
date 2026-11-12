@@ -1,6 +1,6 @@
 import { Download, RotateCcw, ShieldCheck, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent } from 'react'
-import { SafetyRules, ScopeNotice } from '@/components/SafetyNotice'
+import { SafetyRules } from '@/components/SafetyNotice'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { Button } from '@/components/ui/button'
 import { Card, SectionTitle } from '@/components/ui/card'
@@ -70,7 +70,7 @@ export function SettingsScreen() {
         </section>
 
         <section>
-          <SectionTitle>Отдых между подходами</SectionTitle>
+          <SectionTitle>Отдых в базовых упражнениях</SectionTitle>
           <Card>
             <Segmented
               value={settings.restSeconds}
@@ -78,13 +78,13 @@ export function SettingsScreen() {
               label="Отдых между подходами"
               options={[60, 75, 90, 120].map((s) => ({ value: s, label: `${s} с` }))}
             />
+            <p className="mt-2 px-1 text-[13px] text-muted">В изолирующих упражнениях и на пресс — 60 секунд.</p>
           </Card>
         </section>
 
         <section>
           <SectionTitle>Безопасность</SectionTitle>
-          <Card className="space-y-3">
-            <ScopeNotice className="bg-transparent p-0" />
+          <Card>
             <Button variant="secondary" className="w-full" onClick={() => setSafetyOpen(true)}>
               <ShieldCheck className="size-5" />
               Правила безопасности

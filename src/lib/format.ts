@@ -1,21 +1,20 @@
-import type { BandLevel, Equipment, ProgressionDecisionKind, SkipReason } from '@/domain/types'
+import type { BandLevel, ProgressionDecisionKind, SkipReason } from '@/domain/types'
 
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   pain: 'Боль или дискомфорт',
-  dizziness: 'Головокружение или тошнота',
-  balance: 'Неустойчивое равновесие',
   fatigue: 'Сильная усталость',
+  equipment: 'Нет нужной ленты или места',
   other: 'Другая причина',
 }
 
 export const DECISION_LABELS: Record<ProgressionDecisionKind, string> = {
-  progress: 'Можно прибавить',
-  'increase-band': 'Можно сменить ленту',
-  repeat: 'Повторить',
-  reduce: 'Снизить нагрузку',
-  'safety-hold': 'Без повышения',
-  'use-alternative': 'Замена упражнения',
-  'on-plan': 'По плану',
+  'step-up': 'Можно тяжелее',
+  'step-down': 'Легче',
+  'pain-hold': 'Без повышения',
+  keep: 'Без изменений',
+  'add-reps': 'Добавляйте повторы',
+  'top-step': 'Максимальная ступень',
+  'bottom-step': 'Начальная ступень',
 }
 
 export const BAND_RANGES: Record<BandLevel, string> = {
@@ -24,17 +23,12 @@ export const BAND_RANGES: Record<BandLevel, string> = {
   L3: '25–65 кг',
 }
 
-export function formatPrescription(sets: number, reps: number): string {
-  return `${sets} × ${reps}`
+export function formatRepRange(min: number, max: number, perSide = false): string {
+  return `${min}–${max}${perSide ? ' на сторону' : ''}`
 }
 
-export function bandLabel(band: BandLevel | null): string {
-  return band ? `Лента ${band}` : 'Без ленты'
-}
-
-export function equipmentLabel(equipment: Equipment, band: BandLevel | null = null): string {
-  if (equipment.kind === 'bodyweight') return 'Собственный вес'
-  return `Лента ${band ?? equipment.band}, ${equipment.placement}`
+export function formatTarget(sets: number, min: number, max: number, perSide = false): string {
+  return `${sets} × ${formatRepRange(min, max, perSide)}`
 }
 
 export function plural(n: number, one: string, few: string, many: string): string {

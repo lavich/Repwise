@@ -6,7 +6,7 @@ import { answerTechnique } from '@/domain/workoutFlow'
 import { updateActive } from '@/state/actions'
 
 export function TechniqueView({ exercise }: { exercise: SessionExercise }) {
-  const info = EXERCISES[exercise.performedExerciseId]
+  const info = EXERCISES[exercise.exerciseId]
   const reps = exercise.sets.map((s) => s.completedReps).join(' · ')
   return (
     <div className="flex flex-1 flex-col justify-center gap-8 pb-10">

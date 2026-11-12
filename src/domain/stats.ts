@@ -1,5 +1,5 @@
 import { sessionVolume } from './session'
-import type { BandLevel, ExerciseId, ExerciseSkip, SessionStatus, WorkoutSession } from './types'
+import type { ExerciseId, ExerciseSkip, SessionStatus, WorkoutSession } from './types'
 
 export function localDayKey(date: Date): string {
   const y = date.getFullYear()
@@ -39,10 +39,10 @@ export function volumeSeries(sessions: readonly WorkoutSession[]): SeriesPoint[]
 export interface ExerciseHistoryEntry {
   sessionId: string
   date: string
-  performedExerciseId: ExerciseId
-  band: BandLevel | null
+  stepId: string
   targetSets: number
-  targetReps: number
+  repMin: number
+  repMax: number
   reps: number[]
   totalReps: number
   skipped?: ExerciseSkip
@@ -51,14 +51,14 @@ export interface ExerciseHistoryEntry {
 export function exerciseHistory(sessions: readonly WorkoutSession[], exerciseId: ExerciseId): ExerciseHistoryEntry[] {
   return finishedSessions(sessions).flatMap((s) =>
     s.exercises
-      .filter((e) => e.plannedExerciseId === exerciseId && (e.sets.length > 0 || e.skipped))
+      .filter((e) => e.exerciseId === exerciseId && (e.sets.length > 0 || e.skipped))
       .map((e) => ({
         sessionId: s.id,
         date: s.startedAt,
-        performedExerciseId: e.performedExerciseId,
-        band: e.band,
+        stepId: e.stepId,
         targetSets: e.targetSets,
-        targetReps: e.targetReps,
+        repMin: e.repMin,
+        repMax: e.repMax,
         reps: e.sets.map((set) => set.completedReps),
         totalReps: e.sets.reduce((sum, set) => sum + set.completedReps, 0),
         skipped: e.skipped,

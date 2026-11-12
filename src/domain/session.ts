@@ -1,8 +1,8 @@
 import { EXERCISES } from './exercises'
-import { prescriptionFor, WORKOUTS } from './program'
+import { WORKOUTS } from './program'
 import type {
+  ExerciseId,
   ExerciseSkip,
-  Level,
   ProgressionState,
   SessionExercise,
   SessionFeedback,
@@ -13,28 +13,25 @@ import type {
 interface CreateSessionInput {
   id: string
   workoutId: WorkoutId
-  programWeek: Level
   progression: ProgressionState
   now: string
 }
 
-export function createSession({ id, workoutId, programWeek, progression, now }: CreateSessionInput): WorkoutSession {
-  const exercises = WORKOUTS[workoutId].exercises.map<SessionExercise>(({ exerciseId }) => {
-    const state = progression[exerciseId]
-    const target = prescriptionFor(exerciseId, state.level)
-    const alternativeId = EXERCISES[exerciseId].alternativeId
+export function createSession({ id, workoutId, progression, now }: CreateSessionInput): WorkoutSession {
+  const exercises = WORKOUTS[workoutId].exerciseIds.map<SessionExercise>((exerciseId) => {
+    const exercise = EXERCISES[exerciseId]
     return {
-      plannedExerciseId: exerciseId,
-      performedExerciseId: state.useAlternative && alternativeId ? alternativeId : exerciseId,
-      level: state.level,
-      band: state.band,
-      targetSets: target.sets,
-      targetReps: target.reps,
+      exerciseId,
+      stepId: progression[exerciseId].stepId,
+      repMin: exercise.repRange.min,
+      repMax: exercise.repRange.max,
+      perSide: exercise.perSide,
+      targetSets: exercise.sets,
       sets: [],
       goodTechnique: null,
     }
   })
-  return { id, workoutId, programWeek, startedAt: now, status: 'in-progress', exercises }
+  return { id, workoutId, startedAt: now, status: 'in-progress', exercises }
 }
 
 function updateExercise(
@@ -68,7 +65,8 @@ export function recordSet(
         ...exercise.sets,
         {
           setNumber: exercise.sets.length + 1,
-          targetReps: exercise.targetReps,
+          repMin: exercise.repMin,
+          repMax: exercise.repMax,
           completedReps: Math.max(0, Math.round(completedReps)),
           completedAt: now,
         },
@@ -89,15 +87,6 @@ export function skipExercise(session: WorkoutSession, index: number, skip: Exerc
   }))
 }
 
-export function switchToAlternative(session: WorkoutSession, index: number): WorkoutSession {
-  return updateExercise(session, index, (exercise) => {
-    const alternativeId = EXERCISES[exercise.plannedExerciseId].alternativeId
-    if (!alternativeId) throw new Error('Exercise has no alternative')
-    if (exercise.sets.length > 0) throw new Error('Cannot switch after sets were recorded')
-    return { ...exercise, performedExerciseId: alternativeId }
-  })
-}
-
 export function firstUnfinishedIndex(session: WorkoutSession): number {
   return session.exercises.findIndex((e) => !isExerciseDone(e))
 }
@@ -106,7 +95,6 @@ function normalizeFeedback(feedback: SessionFeedback): SessionFeedback {
   return {
     rpe: Math.min(10, Math.max(1, Math.round(feedback.rpe))),
     pain: feedback.pain,
-    dizzinessOrNausea: feedback.dizzinessOrNausea,
     notes: feedback.notes.trim(),
   }
 }
@@ -126,4 +114,24 @@ export function sessionVolume(session: WorkoutSession): number {
     (sum, e) => sum + e.sets.reduce((s, set) => s + set.completedReps, 0),
     0,
   )
+}
+
+export function lastPerformance(
+  sessions: readonly WorkoutSession[],
+  exerciseId: ExerciseId,
+  stepId: string,
+): number[] | null {
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const session = sessions[i]
+    if (!session || session.status === 'in-progress') continue
+    const match = session.exercises.find(
+      (e) => e.exerciseId === exerciseId && e.stepId === stepId && e.sets.length > 0,
+    )
+    if (match) return match.sets.map((set) => set.completedReps)
+  }
+  return null
+}
+
+export function defaultReps(previous: number[] | null, setNumber: number, repMin: number): number {
+  return previous?.[setNumber - 1] ?? repMin
 }

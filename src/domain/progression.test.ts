@@ -1,315 +1,147 @@
 import { describe, expect, it } from 'vitest'
-import { initialExerciseProgression } from './program'
-import { applySuggestion, evaluateExercise, isActionable, setProgressionManually, suggestProgression } from './progression'
 import { initialProgressionState } from './program'
-import type { ExerciseId, ExerciseProgression, Level, SessionExercise, SessionFeedback, WorkoutSession } from './types'
+import { applySuggestion, evaluateExercise, isActionable, setStepManually, suggestProgression } from './progression'
+import type { ExerciseId, SessionExercise, WorkoutSession } from './types'
 
 const NOW = '2026-11-12T10:00:00.000Z'
 
 function performed(
   exerciseId: ExerciseId,
-  options: { sets?: number; reps?: number; completedReps?: number[]; level?: Level; goodTechnique?: boolean } = {},
+  stepId: string,
+  reps: number[],
+  options: { min?: number; max?: number; goodTechnique?: boolean | null } = {},
 ): SessionExercise {
-  const targetSets = options.sets ?? 2
-  const targetReps = options.reps ?? 12
-  const completed = options.completedReps ?? Array.from({ length: targetSets }, () => targetReps)
+  const repMin = options.min ?? 8
+  const repMax = options.max ?? 12
   return {
-    plannedExerciseId: exerciseId,
-    performedExerciseId: exerciseId,
-    level: options.level ?? 1,
-    band: null,
-    targetSets,
-    targetReps,
-    sets: completed.map((reps, i) => ({ setNumber: i + 1, targetReps, completedReps: reps, completedAt: NOW })),
-    goodTechnique: options.goodTechnique ?? true,
+    exerciseId,
+    stepId,
+    repMin,
+    repMax,
+    perSide: false,
+    targetSets: 3,
+    sets: reps.map((completedReps, i) => ({ setNumber: i + 1, repMin, repMax, completedReps, completedAt: NOW })),
+    goodTechnique: options.goodTechnique === undefined ? true : options.goodTechnique,
   }
 }
 
-const feedback = (rpe: number, extra: Partial<SessionFeedback> = {}): SessionFeedback => ({
-  rpe,
-  pain: false,
-  dizzinessOrNausea: false,
-  notes: '',
-  ...extra,
-})
+const evaluate = (exercise: SessionExercise, painReported = false, stopped = false) =>
+  evaluateExercise({ exercise, painReported, stopped })
 
-const state = (exerciseId: ExerciseId, patch: Partial<ExerciseProgression> = {}): ExerciseProgression => ({
-  ...initialExerciseProgression(exerciseId, NOW),
-  ...patch,
-})
-
-describe('evaluateExercise: RPE', () => {
-  it('suggests the next level when all sets were easy and the plan has moved on', () => {
-    const decision = evaluateExercise({
-      exercise: performed('dead-bug'),
-      feedback: feedback(5),
-      current: state('dead-bug'),
-      nextPlannedWeek: 2,
-    })
-    expect(decision.kind).toBe('progress')
-    expect(decision.proposed.level).toBe(2)
+describe('double progression', () => {
+  it('steps up when every set reaches the top of the range', () => {
+    const decision = evaluate(performed('band-squat', 'L2', [12, 12, 13]))
+    expect(decision).toMatchObject({ kind: 'step-up', proposedStepId: 'L3' })
   })
 
-  it('treats RPE 6 as comfortable', () => {
-    const decision = evaluateExercise({
-      exercise: performed('dead-bug'),
-      feedback: feedback(6),
-      current: state('dead-bug'),
-      nextPlannedWeek: 2,
-    })
-    expect(decision.kind).toBe('progress')
+  it('keeps the step while reps are inside the range', () => {
+    const decision = evaluate(performed('band-squat', 'L2', [12, 11, 10]))
+    expect(decision).toMatchObject({ kind: 'add-reps', proposedStepId: 'L2' })
   })
 
-  it('never progresses beyond the planned week', () => {
-    const decision = evaluateExercise({
-      exercise: performed('dead-bug'),
-      feedback: feedback(4),
-      current: state('dead-bug'),
-      nextPlannedWeek: 1,
-    })
-    expect(decision.kind).toBe('on-plan')
-    expect(decision.proposed.level).toBe(1)
+  it('steps down when the first set is below the range', () => {
+    const decision = evaluate(performed('push-up', 'floor', [4, 4, 3], { min: 6 }))
+    expect(decision).toMatchObject({ kind: 'step-down', proposedStepId: 'incline' })
   })
 
-  it.each([7, 8])('repeats the current level at RPE %i', (rpe) => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat'),
-      feedback: feedback(rpe),
-      current: state('banded-squat', { level: 2 }),
-      nextPlannedWeek: 3,
-    })
-    expect(decision.kind).toBe('repeat')
-    expect(decision.proposed.level).toBe(2)
+  it('stays on the easiest step when the first set is below the range there', () => {
+    const decision = evaluate(performed('push-up', 'incline', [3, 3, 3], { min: 6 }))
+    expect(decision).toMatchObject({ kind: 'bottom-step', proposedStepId: 'incline' })
   })
 
-  it.each([9, 10])('suggests reducing the level at RPE %i', (rpe) => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat'),
-      feedback: feedback(rpe),
-      current: state('banded-squat', { level: 3 }),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('reduce')
-    expect(decision.proposed.level).toBe(2)
+  it('suggests tempo instead of a heavier step on the last step', () => {
+    const decision = evaluate(performed('band-lateral-raise', 'L2', [20, 20, 20], { min: 12, max: 20 }))
+    expect(decision).toMatchObject({ kind: 'top-step', proposedStepId: 'L2' })
   })
 
-  it('reduces the band before the level when a heavier band is in use', () => {
-    const decision = evaluateExercise({
-      exercise: performed('glute-bridge'),
-      feedback: feedback(9),
-      current: state('glute-bridge', { level: 2, band: 'L2' }),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('reduce')
-    expect(decision.proposed).toMatchObject({ band: 'L1', level: 2 })
+  it('needs every planned set before stepping up', () => {
+    expect(evaluate(performed('band-squat', 'L2', [12, 12])).kind).toBe('add-reps')
   })
 
-  it('suggests reducing even when sets were not completed', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { completedReps: [12, 6] }),
-      feedback: feedback(10),
-      current: state('banded-squat', { level: 2 }),
-      nextPlannedWeek: 2,
-    })
-    expect(decision.kind).toBe('reduce')
+  it.each([false, null])('does not step up when technique is %s', (goodTechnique) => {
+    const decision = evaluate(performed('band-squat', 'L2', [12, 12, 12], { goodTechnique }))
+    expect(decision).toMatchObject({ kind: 'keep', proposedStepId: 'L2' })
+  })
+
+  it('keeps the step for a skipped exercise', () => {
+    const exercise = { ...performed('band-squat', 'L2', []), skipped: { reason: 'fatigue' as const } }
+    expect(evaluate(exercise)).toMatchObject({ kind: 'keep', proposedStepId: 'L2' })
   })
 })
 
-describe('evaluateExercise: completion and technique', () => {
-  it('returns to the previous week when reps were missed', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { completedReps: [12, 10] }),
-      feedback: feedback(5),
-      current: state('banded-squat', { level: 2 }),
-      nextPlannedWeek: 3,
-    })
-    expect(decision.kind).toBe('repeat')
-    expect(decision.proposed.level).toBe(1)
+describe('safety', () => {
+  it('blocks a step up after pain', () => {
+    const decision = evaluate(performed('band-squat', 'L2', [12, 12, 12]), true)
+    expect(decision).toMatchObject({ kind: 'pain-hold', proposedStepId: 'L2' })
   })
 
-  it('does not progress when technique was poor', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { goodTechnique: false }),
-      feedback: feedback(4),
-      current: state('banded-squat'),
-      nextPlannedWeek: 2,
-    })
-    expect(decision.kind).toBe('repeat')
-    expect(decision.proposed.level).toBe(1)
+  it('still allows a step down after pain', () => {
+    const decision = evaluate(performed('push-up', 'floor', [4, 5, 5], { min: 6 }), true)
+    expect(decision).toMatchObject({ kind: 'step-down', proposedStepId: 'incline' })
   })
 
-  it('does not progress when fewer sets than planned were recorded', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { sets: 3, completedReps: [12, 12] }),
-      feedback: feedback(4),
-      current: state('banded-squat'),
-      nextPlannedWeek: 2,
-    })
-    expect(decision.kind).toBe('repeat')
-  })
-})
-
-describe('evaluateExercise: safety', () => {
-  it.each([
-    ['pain', { pain: true }],
-    ['dizziness or nausea', { dizzinessOrNausea: true }],
-  ] as const)('holds progression after %s even with an easy RPE', (_, extra) => {
-    const decision = evaluateExercise({
-      exercise: performed('dead-bug'),
-      feedback: feedback(3, extra),
-      current: state('dead-bug'),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('safety-hold')
-    expect(decision.proposed).toEqual(state('dead-bug'))
+  it('blocks a step up in a stopped session', () => {
+    expect(evaluate(performed('band-squat', 'L2', [12, 12, 12]), false, true).kind).toBe('pain-hold')
   })
 
-  it.each(['pain', 'dizziness'] as const)('holds progression for an exercise skipped because of %s', (reason) => {
-    const decision = evaluateExercise({
-      exercise: { ...performed('banded-squat', { completedReps: [] }), skipped: { reason } },
-      feedback: feedback(3),
-      current: state('banded-squat'),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('safety-hold')
-  })
-
-  it('offers Sit to Stand when the lunge was skipped because of balance', () => {
-    const decision = evaluateExercise({
-      exercise: { ...performed('supported-reverse-lunge', { completedReps: [] }), skipped: { reason: 'balance' } },
-      feedback: feedback(5),
-      current: state('supported-reverse-lunge'),
-      nextPlannedWeek: 1,
-    })
-    expect(decision.kind).toBe('use-alternative')
-    expect(decision.proposed.useAlternative).toBe(true)
-  })
-})
-
-describe('evaluateExercise: bands', () => {
-  it('suggests L2 for squats only after the top level is comfortable', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { sets: 3, reps: 15, level: 4 }),
-      feedback: feedback(5),
-      current: state('banded-squat', { level: 4 }),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('increase-band')
-    expect(decision.proposed.band).toBe('L2')
-  })
-
-  it('does not suggest a heavier band below the top level', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { sets: 3, reps: 15, level: 3 }),
-      feedback: feedback(5),
-      current: state('banded-squat', { level: 3 }),
-      nextPlannedWeek: 3,
-    })
-    expect(decision.proposed.band).toBe('L1')
-  })
-
-  it('does not suggest L2 for exercises where it is not allowed', () => {
-    const decision = evaluateExercise({
-      exercise: performed('lateral-band-walk', { sets: 3, reps: 15, level: 4 }),
-      feedback: feedback(3),
-      current: state('lateral-band-walk', { level: 4 }),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.kind).toBe('on-plan')
-    expect(decision.proposed.band).toBe('L1')
-  })
-
-  it('never introduces L3 automatically', () => {
-    const decision = evaluateExercise({
-      exercise: performed('banded-squat', { sets: 3, reps: 15, level: 4 }),
-      feedback: feedback(2),
-      current: state('banded-squat', { level: 4, band: 'L2' }),
-      nextPlannedWeek: 4,
-    })
-    expect(decision.proposed.band).toBe('L2')
-    expect(decision.kind).toBe('on-plan')
-  })
-})
-
-describe('suggestProgression', () => {
-  const session: WorkoutSession = {
-    id: 's1',
-    workoutId: 'A',
-    programWeek: 1,
-    startedAt: NOW,
-    finishedAt: NOW,
-    status: 'completed',
-    exercises: [performed('banded-squat'), performed('dead-bug', { sets: 2, reps: 8 })],
-    feedback: feedback(5),
-  }
-
-  it('returns one suggestion per exercise without changing the state', () => {
-    const progression = initialProgressionState(NOW)
-    const suggestions = suggestProgression(session, progression, 2)
-    expect(suggestions.map((s) => s.exerciseId)).toEqual(['banded-squat', 'dead-bug'])
-    expect(progression['banded-squat'].level).toBe(1)
-  })
-
-  it('returns nothing for a session that is still in progress', () => {
-    expect(suggestProgression({ ...session, status: 'in-progress' }, initialProgressionState(NOW), 2)).toEqual([])
-  })
-
-  it('applies a suggestion only when explicitly confirmed', () => {
-    const progression = initialProgressionState(NOW)
-    const [suggestion] = suggestProgression(session, progression, 2)
-    if (!suggestion) throw new Error('expected a suggestion')
-    expect(isActionable(suggestion)).toBe(true)
-    const next = applySuggestion(progression, suggestion, '2026-11-13T10:00:00.000Z')
-    expect(next['banded-squat'].level).toBe(2)
-    expect(next['glute-bridge']).toEqual(progression['glute-bridge'])
-  })
-})
-
-describe('setProgressionManually', () => {
-  it('lets the user override level and band', () => {
-    const next = setProgressionManually(initialProgressionState(NOW), 'banded-squat', { level: 3, band: 'L2' }, NOW)
-    expect(next['banded-squat']).toMatchObject({ level: 3, band: 'L2' })
-  })
-
-  it('keeps bodyweight exercises without a band', () => {
-    const next = setProgressionManually(initialProgressionState(NOW), 'dead-bug', { band: 'L2' }, NOW)
-    expect(next['dead-bug'].band).toBeNull()
-  })
-})
-
-describe('safety edge cases', () => {
-  it('does not progress when the technique question was not answered', () => {
-    const exercise = { ...performed('dead-bug'), goodTechnique: null }
-    const decision = evaluateExercise({ exercise, feedback: feedback(4), current: state('dead-bug'), nextPlannedWeek: 2 })
-    expect(decision.proposed.level).toBe(1)
-  })
-
-  it('holds every exercise when one was skipped because of dizziness', () => {
+  it('holds every exercise when one was skipped because of pain', () => {
     const session: WorkoutSession = {
       id: 's1',
       workoutId: 'A',
-      programWeek: 1,
       startedAt: NOW,
       status: 'completed',
-      exercises: [performed('banded-squat'), { ...performed('dead-bug', { completedReps: [] }), skipped: { reason: 'dizziness' } }],
-      feedback: feedback(4),
+      exercises: [
+        performed('band-squat', 'L2', [12, 12, 12]),
+        { ...performed('push-up', 'floor', []), skipped: { reason: 'pain' } },
+      ],
+      feedback: { rpe: 5, pain: false, notes: '' },
     }
-    const kinds = suggestProgression(session, initialProgressionState(NOW), 4).map((s) => s.kind)
-    expect(kinds).toEqual(['safety-hold', 'safety-hold'])
+    expect(suggestProgression(session).map((s) => s.kind)).toEqual(['pain-hold', 'keep'])
   })
 
-  it('steps down to a band the exercise allows', () => {
-    const decision = evaluateExercise({
-      exercise: performed('lateral-band-walk'),
-      feedback: feedback(9),
-      current: state('lateral-band-walk', { band: 'L3' }),
-      nextPlannedWeek: 1,
-    })
-    expect(decision.proposed.band).toBe('L1')
+  it('ignores RPE', () => {
+    const session: WorkoutSession = {
+      id: 's1',
+      workoutId: 'A',
+      startedAt: NOW,
+      status: 'completed',
+      exercises: [performed('band-squat', 'L2', [12, 12, 12])],
+      feedback: { rpe: 10, pain: false, notes: '' },
+    }
+    expect(suggestProgression(session)[0]?.kind).toBe('step-up')
+  })
+})
+
+describe('applying suggestions', () => {
+  const session: WorkoutSession = {
+    id: 's1',
+    workoutId: 'A',
+    startedAt: NOW,
+    status: 'completed',
+    exercises: [performed('band-squat', 'L2', [12, 12, 12])],
+    feedback: { rpe: 7, pain: false, notes: '' },
+  }
+
+  it('judges against the step recorded in the session', () => {
+    const [suggestion] = suggestProgression({ ...session, exercises: [performed('band-squat', 'L1', [12, 12, 12])] })
+    expect(suggestion).toMatchObject({ currentStepId: 'L1', proposedStepId: 'L2' })
   })
 
-  it('keeps a band on band exercises when a manual change clears it', () => {
-    const next = setProgressionManually(initialProgressionState(NOW), 'banded-squat', { band: null }, NOW)
-    expect(next['banded-squat'].band).toBe('L1')
+  it('changes the step only when a suggestion is applied', () => {
+    const state = initialProgressionState(NOW)
+    const [suggestion] = suggestProgression(session)
+    if (!suggestion) throw new Error('expected a suggestion')
+    expect(isActionable(suggestion)).toBe(true)
+    expect(state['band-squat'].stepId).toBe('L2')
+    expect(applySuggestion(state, suggestion, NOW)['band-squat'].stepId).toBe('L3')
+  })
+
+  it('lets the user pick any step manually', () => {
+    const next = setStepManually(initialProgressionState(NOW), 'bent-over-band-row', 'L2+L3', NOW)
+    expect(next['bent-over-band-row'].stepId).toBe('L2+L3')
+  })
+
+  it('rejects a step that is not on the ladder', () => {
+    expect(() => setStepManually(initialProgressionState(NOW), 'push-up', 'L3', NOW)).toThrow()
   })
 })
