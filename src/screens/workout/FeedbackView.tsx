@@ -28,8 +28,11 @@ const YES_NO = [
 
 export function FeedbackView({ active, onFinished }: { active: ActiveWorkout; onFinished: (sessionId: string) => void }) {
   const [rpe, setRpe] = useState<number | null>(null)
-  const { session, stopping } = active
-  const [pain, setPain] = useState<'yes' | 'no' | null>(stopping ? null : 'no')
+  const { session } = active
+  const nothingDone = session.exercises.every((e) => e.sets.length === 0)
+  const stopping = active.stopping || nothingDone
+  const askExplicitly = stopping || session.exercises.some((e) => e.skipped?.reason === 'pain')
+  const [pain, setPain] = useState<'yes' | 'no' | null>(askExplicitly ? null : 'no')
   const [notes, setNotes] = useState('')
   const answered = rpe !== null && pain !== null
   const volume = sessionVolume(session)

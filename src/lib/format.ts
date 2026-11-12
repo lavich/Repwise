@@ -27,6 +27,10 @@ export function formatRepRange(min: number, max: number, perSide = false): strin
   return `${min}–${max}${perSide ? ' на сторону' : ''}`
 }
 
+export function formatRepGoal(min: number, max: number, perSide = false): string {
+  return `${min}–${max} повторов${perSide ? ' на сторону' : ''}`
+}
+
 export function formatTarget(sets: number, min: number, max: number, perSide = false): string {
   return `${sets} × ${formatRepRange(min, max, perSide)}`
 }

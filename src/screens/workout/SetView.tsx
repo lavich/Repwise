@@ -12,7 +12,7 @@ import type { ActiveWorkout, SessionExercise } from '@/domain/types'
 import { completeSet } from '@/domain/workoutFlow'
 import { unlockAudio } from '@/lib/device'
 import { cn } from '@/lib/cn'
-import { formatRepRange } from '@/lib/format'
+import { formatRepGoal } from '@/lib/format'
 import { updateActive } from '@/state/actions'
 import { getData, useAppData } from '@/state/store'
 import { BottomActions } from './BottomActions'
@@ -64,7 +64,7 @@ export function SetView({ active, exercise }: { active: ActiveWorkout; exercise:
           Подход {setNumber} из {exercise.targetSets}
         </p>
         <p className="tabular text-center text-[15px] text-muted">
-          Цель: {formatRepRange(exercise.repMin, exercise.repMax, exercise.perSide)} повторов, за 1–2 до отказа
+          Цель: {formatRepGoal(exercise.repMin, exercise.repMax, exercise.perSide)}, за 1–2 до отказа
         </p>
         {previous && (
           <p className="tabular mt-1 text-center text-[15px]">

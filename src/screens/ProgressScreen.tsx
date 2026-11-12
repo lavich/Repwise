@@ -128,7 +128,7 @@ function Overview() {
                           {h.reps.join(' · ')}
                           <span className="font-normal text-muted">
                             {' '}
-                            / {formatRepRange(h.repMin, h.repMax)} · {stepLabel(exerciseId, h.stepId)}
+                            / {formatRepRange(h.repMin, h.repMax, EXERCISES[exerciseId].perSide)} · {stepLabel(exerciseId, h.stepId)}
                           </span>
                         </span>
                       )}

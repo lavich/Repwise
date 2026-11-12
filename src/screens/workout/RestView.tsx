@@ -5,7 +5,7 @@ import { EXERCISES } from '@/domain/exercises'
 import type { ActiveWorkout, SessionExercise } from '@/domain/types'
 import { extendRest, finishRest } from '@/domain/workoutFlow'
 import { signalRestFinished } from '@/lib/device'
-import { formatClock, formatRepRange } from '@/lib/format'
+import { formatClock, formatRepGoal } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { updateActive } from '@/state/actions'
 import { useAppData } from '@/state/store'
@@ -57,7 +57,7 @@ export function RestView({ active, exercise }: { active: ActiveWorkout; exercise
         <div className="text-center">
           <p className="text-[15px] text-muted">Далее</p>
           <p className="text-lg font-semibold">
-            Подход {nextSet} из {exercise.targetSets} · {formatRepRange(exercise.repMin, exercise.repMax, exercise.perSide)} повторов
+            Подход {nextSet} из {exercise.targetSets} · {formatRepGoal(exercise.repMin, exercise.repMax, exercise.perSide)}
           </p>
         </div>
         <p className="max-w-xs text-center text-[15px] text-muted">

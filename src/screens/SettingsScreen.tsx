@@ -153,7 +153,7 @@ export function SettingsScreen() {
 
       <Sheet open={resetOpen} onClose={() => setResetOpen(false)} title="Начать заново?">
         <p className="text-base leading-snug">
-          История тренировок и уровни нагрузки будут удалены. Перед этим стоит сделать экспорт.
+          История тренировок и ступени нагрузки будут удалены. Перед этим стоит сделать экспорт.
         </p>
         <div className="mt-5 grid gap-2">
           <Button

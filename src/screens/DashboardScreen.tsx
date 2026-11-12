@@ -14,13 +14,14 @@ import { pendingActionableSuggestions } from '@/domain/workoutFlow'
 import { cn } from '@/lib/cn'
 import { formatRepRange, formatWeekday, plural } from '@/lib/format'
 import { start, updateSettings } from '@/state/actions'
+import { useNow } from '@/lib/hooks'
 import { useAppData } from '@/state/store'
 
 export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }) {
   const data = useAppData()
   const done = completedSessions(data.sessions)
-  const [now] = useState(() => new Date())
-  const thisWeek = completedThisWeek(data.sessions, now)
+  const now = useNow(true, 60_000)
+  const thisWeek = completedThisWeek(data.sessions, new Date(now))
   const suggested = nextWorkoutId(data.sessions)
   const [chosen, setChosen] = useState<WorkoutId | null>(null)
   const workoutId = chosen ?? suggested
@@ -89,7 +90,7 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
         </Button>
         {chosen && (
           <p className="mt-2 text-center text-[13px] text-muted">
-            По расписанию сейчас {WORKOUTS[suggested].title.toLowerCase()}
+            По расписанию — {WORKOUTS[suggested].title}
           </p>
         )}
       </Card>

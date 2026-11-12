@@ -50,8 +50,8 @@ describe('double progression', () => {
   })
 
   it('suggests tempo instead of a heavier step on the last step', () => {
-    const decision = evaluate(performed('band-lateral-raise', 'L2', [20, 20, 20], { min: 12, max: 20 }))
-    expect(decision).toMatchObject({ kind: 'top-step', proposedStepId: 'L2' })
+    const decision = evaluate(performed('band-lateral-raise', 'L1-pause', [20, 20, 20], { min: 12, max: 20 }))
+    expect(decision).toMatchObject({ kind: 'top-step', proposedStepId: 'L1-pause' })
   })
 
   it('needs every planned set before stepping up', () => {

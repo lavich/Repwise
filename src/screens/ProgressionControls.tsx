@@ -12,7 +12,7 @@ export function ProgressionControls({ exerciseId }: { exerciseId: ExerciseId }) 
   return (
     <section className="space-y-3 rounded-2xl border border-border p-4">
       <div>
-        <h3 className="font-semibold">Ваша ступень</h3>
+        <h3 className="font-semibold">Ваша нагрузка</h3>
         <p className="text-[13px] text-muted">
           От лёгкой к тяжёлой. Можно выбрать вручную — рекомендации сменят её только с вашего согласия.
         </p>

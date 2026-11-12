@@ -16,12 +16,19 @@ export function Sheet({
 }) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
 
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Depends on `open` only: callers pass a new onClose on every render, and
+  // re-running this effect would steal focus from inputs inside the sheet.
   useEffect(() => {
     if (!open) return
     const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     dialogRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onCloseRef.current()
     window.addEventListener('keydown', onKey)
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -30,7 +37,7 @@ export function Sheet({
       document.body.style.overflow = previous
       returnFocus?.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   return createPortal(

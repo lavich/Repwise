@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, SectionTitle } from '@/components/ui/card'
 import { EXERCISES } from '@/domain/exercises'
 import { WORKOUTS } from '@/domain/program'
-import { isActionable } from '@/domain/progression'
+import { hadPain, isActionable } from '@/domain/progression'
 import { sessionVolume } from '@/domain/session'
 import { DECISION_LABELS, formatDuration } from '@/lib/format'
 import { useAppData } from '@/state/store'
@@ -17,6 +17,7 @@ export function SummaryScreen({ sessionId, onClose }: { sessionId: string; onClo
   const actionable = suggestions.filter(isActionable)
   const informational = suggestions.filter((s) => !isActionable(s))
   const stopped = session?.status === 'stopped'
+  const painful = session ? hadPain(session) : false
 
   return (
     <div className="pt-safe pb-safe mx-auto min-h-dvh max-w-lg px-4">
@@ -70,7 +71,7 @@ export function SummaryScreen({ sessionId, onClose }: { sessionId: string; onClo
                   <div key={s.id} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold">{EXERCISES[s.exerciseId].nameRu}</p>
-                      <Badge tone={s.kind === 'pain-hold' ? 'danger' : 'neutral'}>{DECISION_LABELS[s.kind]}</Badge>
+                      <Badge tone={s.kind === 'pain-hold' && painful ? 'danger' : 'neutral'}>{DECISION_LABELS[s.kind]}</Badge>
                     </div>
                     <p className="mt-1 text-[15px] leading-snug text-muted">{s.reason}</p>
                   </div>
