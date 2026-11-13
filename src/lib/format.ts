@@ -1,4 +1,4 @@
-import type { BandLevel, ProgressionDecisionKind, SkipReason } from '@/domain/types'
+import type { BandLevel, MuscleId, ProgressionDecisionKind, SkipReason } from '@/domain/types'
 
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   pain: 'Боль или дискомфорт',
@@ -15,6 +15,32 @@ export const DECISION_LABELS: Record<ProgressionDecisionKind, string> = {
   'add-reps': 'Добавляйте повторы',
   'top-step': 'Максимальная ступень',
   'bottom-step': 'Начальная ступень',
+}
+
+export const MUSCLE_LABELS: Record<MuscleId, string> = {
+  chest: 'грудь',
+  'front-delts': 'передняя дельта',
+  'side-delts': 'средняя дельта',
+  biceps: 'бицепсы',
+  triceps: 'трицепсы',
+  abs: 'пресс',
+  obliques: 'косые мышцы живота',
+  lats: 'широчайшие',
+  'upper-back': 'верх спины',
+  'lower-back': 'поясница',
+  glutes: 'ягодицы',
+  quads: 'квадрицепсы',
+  hamstrings: 'задняя поверхность бедра',
+  adductors: 'приводящие',
+  calves: 'икры',
+}
+
+export function formatMuscles(muscles: readonly MuscleId[]): string {
+  return muscles.map((id) => MUSCLE_LABELS[id]).join(', ')
+}
+
+export function formatSetCount(value: number): string {
+  return value.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
 }
 
 export const BAND_RANGES: Record<BandLevel, string> = {

@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { ExerciseDetails } from '@/components/ExerciseDetails'
 import { ExerciseIllustration } from '@/components/illustrations/ExerciseIllustration'
+import { ExerciseMuscleMap } from '@/components/muscles/MuscleMap'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, SectionTitle } from '@/components/ui/card'
@@ -60,15 +61,13 @@ export function LibraryScreen() {
             <div>
               <p className="text-[15px] text-muted">{exercise.nameEn}</p>
               <p className="mt-1 text-base leading-snug">{exercise.summary}</p>
-              <p className="mt-2 text-[15px]">
-                <span className="text-muted">Мышцы:</span> {exercise.muscles}
-              </p>
               <p className="tabular text-[15px]">
                 <span className="text-muted">Подходы и повторы:</span>{' '}
                 {formatTarget(exercise.sets, exercise.repRange.min, exercise.repRange.max, exercise.perSide)}
               </p>
             </div>
             <ExerciseIllustration exerciseId={exercise.id} title={exercise.nameRu} />
+            <ExerciseMuscleMap muscles={exercise.muscles} />
             <ProgressionControls exerciseId={exercise.id} />
             <ExerciseDetails exercise={exercise} />
           </div>

@@ -1,11 +1,12 @@
 import { ExerciseCautions, ExerciseSteps } from '@/components/ExerciseDetails'
 import { ExerciseIllustration } from '@/components/illustrations/ExerciseIllustration'
+import { ExerciseMuscleMap } from '@/components/muscles/MuscleMap'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EXERCISES, stepLabel } from '@/domain/exercises'
 import type { SessionExercise } from '@/domain/types'
 import { beginExercise } from '@/domain/workoutFlow'
-import { formatTarget } from '@/lib/format'
+import { formatMuscles, formatTarget } from '@/lib/format'
 import { updateActive } from '@/state/actions'
 import { BottomActions } from './BottomActions'
 
@@ -18,7 +19,7 @@ export function ExerciseIntro({ exercise }: { exercise: SessionExercise }) {
         <div>
           <p className="text-[15px] font-medium text-muted">{info.nameEn}</p>
           <h1 className="text-[28px] leading-tight font-bold tracking-tight">{info.nameRu}</h1>
-          <p className="mt-1 text-[15px] text-muted">{info.muscles}</p>
+          <p className="mt-1 text-[15px] text-muted first-letter:uppercase">{formatMuscles(info.muscles.primary)}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -31,6 +32,7 @@ export function ExerciseIntro({ exercise }: { exercise: SessionExercise }) {
         </div>
 
         <ExerciseIllustration exerciseId={info.id} title={info.nameRu} />
+        <ExerciseMuscleMap muscles={info.muscles} />
 
         <section className="space-y-2">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">Исходное положение</h2>

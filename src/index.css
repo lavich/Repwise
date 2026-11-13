@@ -18,6 +18,11 @@
   --warning: #f4bd4f;
   --warning-soft: rgb(244 189 79 / 0.14);
   --info: #7cc2ff;
+  --body: #262b28;
+  --muscle-0: #323833;
+  --muscle-1: #74962a;
+  --muscle-2: #a6d03a;
+  --muscle-3: #dcff6e;
 }
 
 :root[data-theme='light'] {
@@ -37,6 +42,11 @@
   --warning: #a86a00;
   --warning-soft: rgb(168 106 0 / 0.1);
   --info: #1a6fc2;
+  --body: #f6f7f3;
+  --muscle-0: #d6dbd0;
+  --muscle-1: #4f8210;
+  --muscle-2: #335e00;
+  --muscle-3: #1f3d00;
 }
 
 @theme inline {
@@ -55,6 +65,11 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-info: var(--info);
+  --color-body: var(--body);
+  --color-muscle-0: var(--muscle-0);
+  --color-muscle-1: var(--muscle-1);
+  --color-muscle-2: var(--muscle-2);
+  --color-muscle-3: var(--muscle-3);
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
