@@ -44,18 +44,18 @@ describe('exercise catalog', () => {
     'band-biceps-curl',
     'bent-over-band-row',
     'band-overhead-triceps-extension',
-  ] as const)('%s puts band pairs between single bands', (id) => {
-    expect(EXERCISES[id].loadSteps.slice(0, 6).map((step) => step.id)).toEqual(['L1', 'L2', 'L1+L2', 'L3', 'L1+L3', 'L2+L3'])
+  ] as const)('%s adds band pairs with L3 after the single bands', (id) => {
+    expect(EXERCISES[id].loadSteps.slice(0, 5).map((step) => step.id)).toEqual(['L1', 'L2', 'L3', 'L1+L3', 'L2+L3'])
   })
 
   it('keeps L3 out of the overhead press', () => {
-    expect(EXERCISES['band-overhead-press'].loadSteps.map((step) => step.id)).toEqual(['L1', 'L2', 'L1+L2'])
+    expect(EXERCISES['band-overhead-press'].loadSteps.map((step) => step.id)).toEqual(['L1', 'L2'])
   })
 
   it.each([
-    ['push-up', ['band-L1', 'band-L2', 'band-L1+L2', 'band-L3']],
-    ['bulgarian-split-squat', ['band-L1', 'band-L2', 'band-L1+L2', 'band-L3', 'band-L1+L3', 'band-L2+L3']],
-    ['banded-glute-bridge', ['L1', 'L2', 'L1+L2', 'L3', 'single-leg-L2', 'L1+L3', 'L2+L3']],
+    ['push-up', ['band-L1', 'band-L2', 'band-L3']],
+    ['bulgarian-split-squat', ['band-L1', 'band-L2', 'band-L3', 'band-L1+L3', 'band-L2+L3']],
+    ['banded-glute-bridge', ['L1', 'L2', 'L3', 'single-leg-L2', 'L1+L3', 'L2+L3']],
     ['band-overhead-triceps-extension', ['L2+L3', 'one-arm-L3', 'one-arm-L1+L3', 'one-arm-L2+L3']],
   ] as const)('%s ends with its heaviest variants', (id, last) => {
     expect(EXERCISES[id].loadSteps.slice(-last.length).map((step) => step.id)).toEqual(last)

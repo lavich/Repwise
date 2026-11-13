@@ -31,7 +31,7 @@ const evaluate = (exercise: SessionExercise, painReported = false, stopped = fal
 describe('double progression', () => {
   it('steps up when every set reaches the top of the range', () => {
     const decision = evaluate(performed('band-squat', 'L2', [12, 12, 13]))
-    expect(decision).toMatchObject({ kind: 'step-up', proposedStepId: 'L1+L2' })
+    expect(decision).toMatchObject({ kind: 'step-up', proposedStepId: 'L3' })
   })
 
   it('keeps the step while reps are inside the range', () => {
@@ -133,7 +133,7 @@ describe('applying suggestions', () => {
     if (!suggestion) throw new Error('expected a suggestion')
     expect(isActionable(suggestion)).toBe(true)
     expect(state['band-squat'].stepId).toBe('L2')
-    expect(applySuggestion(state, suggestion, NOW)['band-squat'].stepId).toBe('L1+L2')
+    expect(applySuggestion(state, suggestion, NOW)['band-squat'].stepId).toBe('L3')
   })
 
   it('lets the user pick any step manually', () => {
