@@ -7,7 +7,7 @@ describe('3D models', () => {
     const levels = muscleLevels(EXERCISES['push-up'].muscles)
     expect(levels).toHaveLength(16)
     expect(levels[0]).toBe(0)
-    expect(levels[1]).toBe(2)
+    expect(levels[1]).toBe(3)
     expect(levels[2]).toBe(1)
     expect(levels[3]).toBe(0)
   })
@@ -19,7 +19,7 @@ describe('3D models', () => {
     expect(clipTime(model, 1.5)).toBeCloseTo(23 / 30)
   })
 
-  it('has models only for push-ups and banded squats', () => {
-    expect(Object.keys(MODELS).sort()).toEqual(['band-squat', 'push-up'])
+  it('has a model for every exercise', () => {
+    expect(Object.keys(MODELS).sort()).toEqual(Object.keys(EXERCISES).sort())
   })
 })

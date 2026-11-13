@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 
 import bpy
-from mathutils import Matrix, Quaternion, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from exercise_poses import POSES, STEP as STEP_HEIGHT  # noqa: E402
 
 args = sys.argv[sys.argv.index('--') + 1:]
 SOURCES, OUTPUT = Path(args[0]), Path(args[1])
@@ -18,7 +21,7 @@ MUSCLE_IDS = [
     'chest', 'front-delts', 'side-delts', 'biceps', 'triceps', 'abs', 'obliques', 'lats',
     'upper-back', 'lower-back', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves',
 ]
-SQUAT_FRAMES = 30
+FRAMES = 30
 # Distance of the shoulder joints from the midline in the rest pose.
 SHOULDER_X = 0.174
 
@@ -67,137 +70,161 @@ def empty(name, location, parent=None, bone=None):
     return obj
 
 
-def head_world(armature, bone):
-    return armature.matrix_world @ armature.data.bones[bone].head_local
-
-
-def add_ik(pose_bone, target, pole, chain=2, pole_angle=0.0):
+def add_ik(pose_bone, target, pole):
     constraint = pose_bone.constraints.new('IK')
     constraint.target = target
     constraint.pole_target = pole
-    constraint.pole_angle = pole_angle
-    constraint.chain_count = chain
-    return constraint
+    constraint.pole_angle = math.radians(-90)
+    constraint.chain_count = 2
 
 
-def rotate_about_head(armature, name, axis, degrees):
-    pose_bone = armature.pose.bones[name]
-    head = pose_bone.head.copy()
-    rotation = Matrix.Rotation(math.radians(degrees), 4, axis)
-    pose_bone.matrix = Matrix.Translation(head) @ rotation @ Matrix.Translation(-head) @ pose_bone.matrix
+AXES = {'X': Vector((1, 0, 0)), 'Y': Vector((0, 1, 0)), 'Z': Vector((0, 0, 1))}
+
+
+def rest_rotation(pose_bone, axis, degrees):
+    """Rotation of a bone about an axis of the rest pose, relative to its parent."""
+    local = pose_bone.bone.matrix_local.to_3x3().inverted() @ AXES[axis]
+    return Quaternion(local, math.radians(degrees))
+
+
+def turn(pose_bone, axis, degrees):
+    pose_bone.rotation_mode = 'QUATERNION'
+    pose_bone.rotation_quaternion = rest_rotation(pose_bone, axis, degrees) @ pose_bone.rotation_quaternion
+
+
+def lower_arms(pose):
+    for side, sign in (('l', 1), ('r', -1)):
+        turn(pose[f'upperarm_{side}'], 'Y', 72 * sign)
+        turn(pose[f'lowerarm_{side}'], 'Y', 8 * sign)
+
+
+def grip(pose, curl=None):
+    for side, sign in (('l', 1), ('r', -1)):
+        for finger, angle in (('index', 80), ('middle', 85), ('ring', 85), ('pinky', 80), ('thumb', 60)):
+            for joint in ('01', '02', '03'):
+                turn(pose[f'{finger}_{joint}_{side}'], 'Y', (curl or angle) * sign)
+
+
+def resolve(armature, spec):
+    kind = spec[0]
+    if kind == 'at':
+        return Vector(spec[1])
+    if kind == 'from':
+        return armature.matrix_world @ armature.pose.bones[spec[1]].head + Vector(spec[2])
+    raise ValueError(kind)
+
+
+def set_state(armature, spec, state):
+    pose = armature.pose.bones
+    for pose_bone in pose:
+        pose_bone.matrix_basis = Matrix.Identity(4)
+        pose_bone.rotation_mode = 'QUATERNION'
+    bpy.context.view_layer.update()
+    location, rotation = state.get('root', (Vector((0, 0, 0)), (0, 0, 0)))
+    euler = Euler([math.radians(a) for a in rotation])
+    root = pose['root']
+    root.matrix = Matrix.Translation(location) @ euler.to_matrix().to_4x4() @ root.bone.matrix_local
+    bpy.context.view_layer.update()
+    for name, (axis, degrees) in {**state.get('bend', {}), **state.get('fk', {})}.items():
+        turn(pose[name], axis, degrees)
+    if spec.get('arms_down'):
+        lower_arms(pose)
+    grip(pose, None if spec.get('grip') else 15)
     bpy.context.view_layer.update()
 
 
-def check_squat(armature):
-    pose = armature.pose.bones
-    feet = {}
-    for frame in range(SQUAT_FRAMES + 1):
-        bpy.context.scene.frame_set(frame)
-        for side, sign in (('l', 1), ('r', -1)):
-            foot = armature.matrix_world @ pose[f'foot_{side}'].head
-            if (foot - feet.setdefault(side, foot.copy())).length > 0.002:
-                raise RuntimeError(f'foot_{side} moves at frame {frame}')
-            elbow = armature.matrix_world @ pose[f'lowerarm_{side}'].head
-            shoulder = armature.matrix_world @ pose[f'upperarm_{side}'].head
-            if elbow.x * sign < 0.25 or elbow.z > shoulder.z:
-                raise RuntimeError(f'elbow_{side} is inside the torso or above the shoulder at frame {frame}')
-
-
-def build_squat(armature):
+def build_clip(armature, name, spec):
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
     pose = armature.pose.bones
-    targets = []
-    for side, sign in (('l', 1), ('r', -1)):
-        foot = head_world(armature, f'foot_{side}')
-        foot_target = empty(f'foot_target_{side}', foot)
-        knee_pole = empty(f'knee_pole_{side}', foot + Vector((0.12 * sign, -0.6, 0.45)))
-        add_ik(pose[f'calf_{side}'], foot_target, knee_pole, pole_angle=math.radians(-90))
-        flat = pose[f'foot_{side}'].constraints.new('COPY_ROTATION')
-        anchor = empty(f'foot_anchor_{side}', foot)
-        anchor.rotation_mode = 'QUATERNION'
-        anchor.rotation_quaternion = (armature.matrix_world @ armature.data.bones[f'foot_{side}'].matrix_local).to_quaternion()
-        flat.target = anchor
-        shoulder = head_world(armature, f'upperarm_{side}')
-        hand_target = empty(f'hand_target_{side}', shoulder + Vector((0.02 * sign, -0.12, -0.02)), armature, 'spine_03')
-        elbow_pole = empty(f'elbow_pole_{side}', shoulder + Vector((0.22 * sign, -0.45, -0.5)), armature, 'spine_03')
-        add_ik(pose[f'lowerarm_{side}'], hand_target, elbow_pole, pole_angle=math.radians(-90))
-        targets += [foot_target, knee_pole, anchor, hand_target, elbow_pole]
+    helpers = []
+    animated = []
+    for chain, limb in spec.get('ik', {}).items():
+        target_spec, pole_spec = limb['target'], limb['pole']
+        objects = []
+        for kind, specs in (('target', target_spec), ('pole', pole_spec)):
+            if specs[0][0] == 'on':
+                obj = empty(f'{name}_{chain}_{kind}', Vector(specs[0][2]), armature, specs[0][1])
+            else:
+                obj = empty(f'{name}_{chain}_{kind}', Vector((0, 0, 0)))
+                animated.append((obj, specs))
+            objects.append(obj)
+        add_ik(pose[chain], *objects)
+        helpers += objects
+        if 'foot' in limb:
+            foot = pose[chain.replace('calf', 'foot')]
+            anchor = empty(f'{name}_{chain}_anchor', Vector((0, 0, 0)))
+            anchor.rotation_mode = 'QUATERNION'
+            rest = (armature.matrix_world @ foot.bone.matrix_local).to_quaternion()
+            constraint = foot.constraints.new('COPY_ROTATION')
+            constraint.target = anchor
+            animated.append((anchor, ('pitch', rest, limb['foot'])))
+            helpers.append(anchor)
 
-    def key_pose(frame, drop, back, lean):
+    for frame, key in ((0, 'start'), (FRAMES, 'end')):
+        index = 0 if key == 'start' else 1
+        set_state(armature, spec, spec[key])
+        for obj, specs in animated:
+            if specs[0] == 'pitch':
+                _, rest, pitches = specs
+                obj.rotation_quaternion = Quaternion(Vector((1, 0, 0)), math.radians(pitches[index])) @ rest
+                obj.keyframe_insert('rotation_quaternion', frame=frame)
+            else:
+                obj.location = resolve(armature, specs[index])
+                obj.keyframe_insert('location', frame=frame)
         for pose_bone in pose:
-            pose_bone.location = (0, 0, 0)
-            pose_bone.rotation_mode = 'QUATERNION'
-            pose_bone.rotation_quaternion = (1, 0, 0, 0)
-        bpy.context.view_layer.update()
-        root = pose['root']
-        root.matrix = Matrix.Translation((0, back, -drop)) @ root.matrix
-        bpy.context.view_layer.update()
-        rotate_about_head(armature, 'pelvis', 'X', lean * 0.6)
-        rotate_about_head(armature, 'spine_02', 'X', lean * 0.4)
-        rotate_about_head(armature, 'neck_01', 'X', -lean * 0.8)
-        for name in ('root', 'pelvis', 'spine_02', 'neck_01'):
-            pose[name].keyframe_insert('location', frame=frame)
-            pose[name].keyframe_insert('rotation_quaternion', frame=frame)
-        grip_band(frame)
+            pose_bone.keyframe_insert('location', frame=frame)
+            pose_bone.keyframe_insert('rotation_quaternion', frame=frame)
 
-    # Fingers close into a fist around the band. The curl axis is the model's
-    # forward axis expressed in each finger bone's rest frame.
-    def grip_band(frame):
-        forward = Vector((0, 1, 0))
-        for side, sign in (('l', 1), ('r', -1)):
-            for finger, angle in (('index', 80), ('middle', 85), ('ring', 85), ('pinky', 80), ('thumb', 60)):
-                for joint in ('01', '02', '03'):
-                    pose_bone = pose[f'{finger}_{joint}_{side}']
-                    axis = pose_bone.bone.matrix_local.to_3x3().inverted() @ forward
-                    pose_bone.rotation_mode = 'QUATERNION'
-                    pose_bone.rotation_quaternion = Quaternion(axis, math.radians(angle * sign))
-                    pose_bone.keyframe_insert('rotation_quaternion', frame=frame)
-
-    key_pose(0, 0.0, 0.0, 0.0)
-    key_pose(SQUAT_FRAMES, 0.42, 0.16, 32.0)
-    driver_action = armature.animation_data.action
+    keyed = armature.animation_data.action
     bpy.ops.nla.bake(
         frame_start=0,
-        frame_end=SQUAT_FRAMES,
+        frame_end=FRAMES,
         only_selected=False,
         visual_keying=True,
         clear_constraints=True,
         use_current_action=False,
         bake_types={'POSE'},
     )
-    squat = armature.animation_data.action
-    squat.name = 'band-squat'
-    check_squat(armature)
-    squat.use_fake_user = True
-    bpy.data.actions.remove(driver_action)
-    for obj in targets:
+    action = armature.animation_data.action
+    action.name = name
+    action.use_fake_user = True
+    bpy.data.actions.remove(keyed)
+    for obj in helpers:
+        if obj.animation_data and obj.animation_data.action:
+            bpy.data.actions.remove(obj.animation_data.action)
         bpy.data.objects.remove(obj)
+    check_clip(armature, name, spec)
+    armature.animation_data.action = None
+    for pose_bone in pose:
+        pose_bone.matrix_basis = Matrix.Identity(4)
     bpy.ops.object.mode_set(mode='OBJECT')
-    return squat
+    return action
 
 
-def rotate_about_forward(pose_bone, degrees):
-    forward = Vector((0, 1, 0))
-    axis = pose_bone.bone.matrix_local.to_3x3().inverted() @ forward
-    pose_bone.rotation_mode = 'QUATERNION'
-    pose_bone.rotation_quaternion = Quaternion(axis, math.radians(degrees))
+def check_clip(armature, name, spec):
+    pose = armature.pose.bones
+    fixed = {}
+    for frame in range(FRAMES + 1):
+        bpy.context.scene.frame_set(frame)
+        for bone in spec.get('contacts', []):
+            point = armature.matrix_world @ pose[bone].head
+            if (point - fixed.setdefault(bone, point.copy())).length > spec.get('tolerance', 0.003):
+                raise RuntimeError(f'{name}: {bone} moves at frame {frame}')
+        limit = spec.get('elbows_out')
+        if limit:
+            for side, sign in (('l', 1), ('r', -1)):
+                elbow = armature.matrix_world @ pose[f'lowerarm_{side}'].head
+                if elbow.x * sign < limit:
+                    raise RuntimeError(f'{name}: elbow_{side} is inside the torso at frame {frame}')
 
 
-# A relaxed standing pose for the muscle map: arms lowered from the T-pose.
 def build_stand(armature):
     action = bpy.data.actions.new('stand')
     action.use_fake_user = True
     armature.animation_data.action = action
     pose = armature.pose.bones
-    for pose_bone in pose:
-        pose_bone.matrix_basis = Matrix.Identity(4)
-    for side, sign in (('l', 1), ('r', -1)):
-        rotate_about_forward(pose[f'upperarm_{side}'], 72 * sign)
-        rotate_about_forward(pose[f'lowerarm_{side}'], 8 * sign)
-        for finger in ('index', 'middle', 'ring', 'pinky'):
-            for joint in ('01', '02', '03'):
-                rotate_about_forward(pose[f'{finger}_{joint}_{side}'], 15 * sign)
+    set_state(armature, {'arms_down': True}, {})
     for frame in (0, 1):
         for pose_bone in pose:
             pose_bone.keyframe_insert('rotation_quaternion', frame=frame)
@@ -205,6 +232,21 @@ def build_stand(armature):
     for pose_bone in pose:
         pose_bone.matrix_basis = Matrix.Identity(4)
     return action
+
+
+def add_props():
+    props = []
+    for name, size, location in (
+        ('prop_bench', (0.6, 0.35, 0.42), (0, 0.62, 0.21)),
+        ('prop_step', (0.4, 0.32, STEP_HEIGHT), (0.089, -0.06, STEP_HEIGHT / 2)),
+    ):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=location)
+        obj = bpy.context.active_object
+        obj.name = name
+        obj.scale = size
+        bpy.ops.object.transform_apply(scale=True)
+        props.append(obj)
+    return props
 
 
 # The mannequin faces -Y and its left side is +X; groups follow the dominant
@@ -273,7 +315,13 @@ def mark_muscles(armature, mesh):
     print('MUSCLE COUNTS', counts)
 
 
-def render_previews(armature, mesh, squat, pushup, stand):
+def use_action(armature, action):
+    armature.animation_data.action = action
+    if action and action.slots:
+        armature.animation_data.action_slot = action.slots[0]
+
+
+def render_previews(armature, mesh, clips, stand, props):
     PREVIEW.mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_WORKBENCH'
@@ -281,7 +329,7 @@ def render_previews(armature, mesh, squat, pushup, stand):
     scene.render.resolution_x, scene.render.resolution_y = 400, 400
     camera_data = bpy.data.cameras.new('camera')
     camera_data.type = 'ORTHO'
-    camera_data.ortho_scale = 2.3
+    camera_data.ortho_scale = 2.4
     camera = bpy.data.objects.new('camera', camera_data)
     scene.collection.objects.link(camera)
     scene.camera = camera
@@ -292,20 +340,19 @@ def render_previews(armature, mesh, squat, pushup, stand):
         scene.render.filepath = str(PREVIEW / f'{name}.png')
         bpy.ops.render.render(write_still=True)
 
-    armature.animation_data.action = squat
-    if squat.slots:
-        armature.animation_data.action_slot = squat.slots[0]
     scene.display.shading.color_type = 'SINGLE'
-    for frame in (0, SQUAT_FRAMES // 2, SQUAT_FRAMES):
-        scene.frame_set(frame)
-        shoot(f'squat-side-{frame}', (3.5, 0, 0.85), (90, 0, 90))
-        shoot(f'squat-front-{frame}', (0, -3.5, 0.85), (90, 0, 0))
-    armature.animation_data.action = pushup
-    if pushup.slots:
-        armature.animation_data.action_slot = pushup.slots[0]
-    for frame in (0, 12, 23):
-        scene.frame_set(frame)
-        shoot(f'pushup-side-{frame}', (3.5, 0, 0.6), (90, 0, 90))
+    for name, action in clips.items():
+        used = POSES.get(name, {}).get('props', [])
+        for prop in props:
+            prop.hide_render = prop.name not in used
+        use_action(armature, action)
+        end = 23 if name == 'pushup' else FRAMES
+        for frame in (0, end // 2, end):
+            scene.frame_set(frame)
+            shoot(f'{name}-side-{frame}', (3.5, 0.3, 0.7), (90, 0, 90))
+            shoot(f'{name}-front-{frame}', (2.4, -2.4, 0.9), (82, 0, 45))
+    for prop in props:
+        prop.hide_render = True
 
     armature.animation_data.action = stand
     if stand.slots:
@@ -339,7 +386,7 @@ def render_previews(armature, mesh, squat, pushup, stand):
     mesh.data.color_attributes.remove(colors)
 
 
-def export(armature, mesh, actions):
+def export(armature, mesh, actions, props):
     for action in actions:
         track = armature.animation_data.nla_tracks.new()
         track.name = action.name
@@ -348,6 +395,8 @@ def export(armature, mesh, actions):
     bpy.ops.object.select_all(action='DESELECT')
     armature.select_set(True)
     mesh.select_set(True)
+    for prop in props:
+        prop.select_set(True)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(
         filepath=str(OUTPUT),
@@ -366,10 +415,15 @@ reset_scene()
 armature, mesh = load_model()
 pushup = load_pushup(armature)
 armature.animation_data_create()
-squat = build_squat(armature)
+clips = {'pushup': pushup}
+only = set(filter(None, __import__('os').environ.get('CLIPS', '').split(',')))
+for clip_name, clip_spec in POSES.items():
+    if not only or clip_name in only:
+        clips[clip_name] = build_clip(armature, clip_name, clip_spec)
 stand = build_stand(armature)
+props = add_props()
 mark_muscles(armature, mesh)
 if PREVIEW:
-    render_previews(armature, mesh, squat, pushup, stand)
-export(armature, mesh, [pushup, squat, stand])
+    render_previews(armature, mesh, clips, stand, props)
+export(armature, mesh, [*clips.values(), stand], props)
 print('EXPORTED', OUTPUT, OUTPUT.stat().st_size)

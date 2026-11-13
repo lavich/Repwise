@@ -45,6 +45,13 @@ function clipDuration(name: string): number {
 }
 
 describe('mannequin model', () => {
+  it('contains every prop used by the app', () => {
+    const names = json.nodes.map((node) => node.name)
+    for (const model of Object.values(MODELS)) {
+      for (const prop of model.props ?? []) expect(names).toContain(prop)
+    }
+  })
+
   it('contains the standing pose for the muscle map', () => {
     expect(clipDuration('stand')).toBeGreaterThan(0)
   })

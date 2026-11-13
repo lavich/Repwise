@@ -22,8 +22,9 @@ export function createMaterial(levels: number[]) {
   const uniforms = {
     uLevels: { value: levels },
     uBody: { value: themeColor('--body-3d') },
-    uSecondary: { value: themeColor('--muscle-1') },
-    uPrimary: { value: themeColor('--muscle-3') },
+    uMuscle1: { value: themeColor('--muscle-1') },
+    uMuscle2: { value: themeColor('--muscle-2') },
+    uMuscle3: { value: themeColor('--muscle-3') },
   }
   const material = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0 })
   material.onBeforeCompile = (shader) => {
@@ -37,11 +38,11 @@ export function createMaterial(levels: number[]) {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform vec3 uBody;\nuniform vec3 uSecondary;\nuniform vec3 uPrimary;\nvarying float vLevel;',
+        '#include <common>\nuniform vec3 uBody;\nuniform vec3 uMuscle1;\nuniform vec3 uMuscle2;\nuniform vec3 uMuscle3;\nvarying float vLevel;',
       )
       .replace(
         'vec4 diffuseColor = vec4( diffuse, opacity );',
-        'vec3 tint = vLevel > 1.5 ? uPrimary : vLevel > 0.5 ? uSecondary : uBody;\nvec4 diffuseColor = vec4( tint, opacity );',
+        'vec3 tint = vLevel > 2.5 ? uMuscle3 : vLevel > 1.5 ? uMuscle2 : vLevel > 0.5 ? uMuscle1 : uBody;\nvec4 diffuseColor = vec4( tint, opacity );',
       )
   }
   material.customProgramCacheKey = () => 'mannequin-muscles'
@@ -52,8 +53,9 @@ export type MuscleUniforms = ReturnType<typeof createMaterial>['uniforms']
 
 export function applyThemeColors(uniforms: MuscleUniforms) {
   uniforms.uBody.value = themeColor('--body-3d')
-  uniforms.uSecondary.value = themeColor('--muscle-1')
-  uniforms.uPrimary.value = themeColor('--muscle-3')
+  uniforms.uMuscle1.value = themeColor('--muscle-1')
+  uniforms.uMuscle2.value = themeColor('--muscle-2')
+  uniforms.uMuscle3.value = themeColor('--muscle-3')
 }
 
 export function createRenderer(canvas: HTMLCanvasElement) {
@@ -71,16 +73,22 @@ export function addLights(scene: THREE.Scene) {
 
 // Each view gets its own clone: a skinned mesh and its skeleton cannot be
 // shared between scenes, while the parsed glTF stays cached.
-export function cloneMannequin(gltf: GLTF, material: THREE.Material) {
+export function cloneMannequin(gltf: GLTF, material: THREE.Material, props: readonly string[] = []) {
   const root = cloneSkinned(gltf.scene)
+  const unused: THREE.Object3D[] = []
+  const propMaterial = new THREE.MeshStandardMaterial({ color: themeColor('--muted'), roughness: 0.9 })
   root.traverse((node) => {
     if ((node as THREE.SkinnedMesh).isSkinnedMesh) {
       const mesh = node as THREE.SkinnedMesh
       mesh.material = material
       mesh.frustumCulled = false
+    } else if (node.name.startsWith('prop_')) {
+      if (props.includes(node.name)) (node as THREE.Mesh).material = propMaterial
+      else unused.push(node)
     }
   })
-  return root
+  unused.forEach((node) => node.removeFromParent())
+  return { root, propMaterial }
 }
 
 export function fitCamera(camera: THREE.OrthographicCamera, halfWidth: number, halfHeight: number, aspect: number) {

@@ -39,7 +39,7 @@ function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, l
   const scene = new THREE.Scene()
   addLights(scene)
   const { material, uniforms } = createMaterial(levels)
-  const root = cloneMannequin(gltf, material)
+  const { root, propMaterial } = cloneMannequin(gltf, material, model.props)
   const pivot = new THREE.Group()
   pivot.add(root)
   scene.add(pivot)
@@ -83,16 +83,14 @@ function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, l
 
   const bandLines: Stage['bandLines'] = []
   const bandMaterial = new THREE.LineBasicMaterial({ color: themeColor('--band') })
-  if (model.band) {
-    for (const side of ['l', 'r']) {
-      const from = root.getObjectByName(`foot_${side}`)
-      const to = root.getObjectByName(`hand_${side}`)
-      if (!from || !to) continue
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), bandMaterial)
-      line.frustumCulled = false
-      scene.add(line)
-      bandLines.push({ line, from, to })
-    }
+  for (const [fromName, toName] of model.bands ?? []) {
+    const from = root.getObjectByName(fromName)
+    const to = root.getObjectByName(toName)
+    if (!from || !to) continue
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), bandMaterial)
+    line.frustumCulled = false
+    scene.add(line)
+    bandLines.push({ line, from, to })
   }
 
   return {
@@ -108,6 +106,7 @@ function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, l
       mixer.stopAllAction()
       root.traverse((node) => (node as THREE.Mesh).geometry?.dispose())
       material.dispose()
+      propMaterial.dispose()
       shadow.geometry.dispose()
       shadow.material.dispose()
       bandMaterial.dispose()

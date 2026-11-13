@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { ExerciseMuscles, ThemePreference } from '@/domain/types'
+import type { ThemePreference } from '@/domain/types'
 import {
   addLights,
   applyThemeColors,
@@ -12,7 +12,7 @@ import {
   loadMannequin,
   type MuscleUniforms,
 } from './mannequin'
-import { muscleLevels } from './models'
+import type { MuscleLevel } from './models'
 
 const STAND_CLIP = 'stand'
 const ASPECT = 1
@@ -37,7 +37,7 @@ function createMapStage(canvas: HTMLCanvasElement, gltf: GLTF, levels: number[])
   const box = new THREE.Box3()
   const roots: THREE.Object3D[] = []
   for (const [index, facing] of [0, Math.PI].entries()) {
-    const root = cloneMannequin(gltf, material)
+    const { root } = cloneMannequin(gltf, material)
     if (clip) {
       const mixer = new THREE.AnimationMixer(root)
       mixer.clipAction(clip).play()
@@ -77,12 +77,12 @@ function createMapStage(canvas: HTMLCanvasElement, gltf: GLTF, levels: number[])
 }
 
 export default function MuscleModel3D({
-  muscles,
+  levels,
   theme,
   label,
   fallback,
 }: {
-  muscles: ExerciseMuscles
+  levels: MuscleLevel[]
   theme: ThemePreference
   label: string
   fallback: ReactNode
@@ -93,6 +93,12 @@ export default function MuscleModel3D({
   const stage = useRef<MapStage | null>(null)
   const drag = useRef<{ x: number; rotation: number } | null>(null)
   const turn = useRef(0)
+  const levelsKey = levels.join(',')
+  const latestLevels = useRef(levels)
+
+  useEffect(() => {
+    latestLevels.current = levels
+  })
 
   useEffect(() => {
     let active = true
@@ -117,7 +123,7 @@ export default function MuscleModel3D({
     if (!gltf || !element || failed) return
     let created: MapStage
     try {
-      created = createMapStage(element, gltf, muscleLevels(muscles))
+      created = createMapStage(element, gltf, latestLevels.current)
     } catch {
       queueMicrotask(() => setFailed(true))
       return
@@ -139,7 +145,13 @@ export default function MuscleModel3D({
       created.dispose()
       stage.current = null
     }
-  }, [gltf, muscles, failed, render])
+  }, [gltf, failed, render])
+
+  useEffect(() => {
+    if (!stage.current) return
+    stage.current.uniforms.uLevels.value = levelsKey.split(',').map(Number)
+    render()
+  }, [levelsKey, render])
 
   // Child effects run before App writes data-theme, so the new colours are
   // read on the next frame.
