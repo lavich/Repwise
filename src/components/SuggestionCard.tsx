@@ -21,7 +21,7 @@ export function SuggestionCard({ suggestion }: { suggestion: ProgressionSuggesti
   return (
     <div className="rounded-2xl border border-border bg-surface-2/60 p-4">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold">{exercise.nameRu}</h3>
+        <h3 className="min-w-0 pt-0.5 font-semibold">{exercise.nameRu}</h3>
         <Badge tone={TONES[suggestion.kind]} className="shrink-0">
           {DECISION_LABELS[suggestion.kind]}
         </Badge>
