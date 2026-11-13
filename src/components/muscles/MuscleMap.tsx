@@ -25,7 +25,7 @@ function Body({ side, levelOf }: { side: BodySide; levelOf: (muscle: MuscleId) =
     <figure className="flex min-w-0 flex-1 flex-col items-center gap-1">
       <svg viewBox="0 0 100 212" className="h-auto w-full max-w-32" aria-hidden="true">
         {SILHOUETTE.map((path) => (
-          <path key={path} d={path} strokeWidth={1.2} strokeLinejoin="round" className="fill-body stroke-border-strong" />
+          <path key={path} d={path} strokeWidth={1.2} strokeLinejoin="round" className="fill-body stroke-muted/50" />
         ))}
         {MUSCLE_REGIONS.filter((region) => region.side === side).map((region) => (
           <path key={region.path} d={region.path} data-muscle={region.muscle} className={LEVEL_FILL[levelOf(region.muscle)]} />
@@ -36,9 +36,14 @@ function Body({ side, levelOf }: { side: BodySide; levelOf: (muscle: MuscleId) =
   )
 }
 
-function BodyPair({ levelOf, label, className }: { levelOf: (m: MuscleId) => LoadLevel; label: string; className?: string }) {
+function BodyPair({ levelOf, label, className }: { levelOf: (m: MuscleId) => LoadLevel; label?: string; className?: string }) {
   return (
-    <div role="img" aria-label={label} className={cn('flex justify-center gap-4', className)}>
+    <div
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      className={cn('flex justify-center gap-4', className)}
+    >
       <Body side="front" levelOf={levelOf} />
       <Body side="back" levelOf={levelOf} />
     </div>
@@ -51,7 +56,7 @@ export function ExerciseMuscleMap({ muscles, className }: { muscles: ExerciseMus
   const secondary = formatMuscles(muscles.secondary)
   return (
     <div className={cn('rounded-2xl bg-surface-2 p-3', className)}>
-      <BodyPair levelOf={levelOf} label={`Основные мышцы: ${primary}${secondary ? `. Вспомогательные: ${secondary}` : ''}`} />
+      <BodyPair levelOf={levelOf} />
       <dl className="mt-3 space-y-1 text-[15px] leading-snug">
         <div className="flex gap-2">
           <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[3])} aria-hidden="true" />
@@ -72,8 +77,8 @@ export function ExerciseMuscleMap({ muscles, className }: { muscles: ExerciseMus
 
 const LEGEND: { level: LoadLevel; label: string }[] = [
   { level: 0, label: '0' },
-  { level: 1, label: 'до 5' },
-  { level: 2, label: '5–9' },
+  { level: 1, label: 'меньше 5' },
+  { level: 2, label: '5–9,5' },
   { level: 3, label: '10+' },
 ]
 

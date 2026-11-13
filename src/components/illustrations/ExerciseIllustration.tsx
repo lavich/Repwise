@@ -115,16 +115,15 @@ function Floor() {
   return <line x1={8} x2={152} y1={FLOOR_Y} y2={FLOOR_Y} strokeWidth={2} className="stroke-border-strong" />
 }
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 function subscribeReducedMotion(onChange: () => void) {
-  const query = window.matchMedia(REDUCED_MOTION)
-  query.addEventListener('change', onChange)
-  return () => query.removeEventListener('change', onChange)
+  reducedMotionQuery.addEventListener('change', onChange)
+  return () => reducedMotionQuery.removeEventListener('change', onChange)
 }
 
 function useReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(REDUCED_MOTION).matches)
+  return useSyncExternalStore(subscribeReducedMotion, () => reducedMotionQuery.matches)
 }
 
 type PlayState = 'playing' | 'paused' | 'finished'
@@ -200,11 +199,11 @@ function AnimatedFigure({
   const [playState, setPlayState] = useState<PlayState>('playing')
   const container = useRef<HTMLDivElement>(null)
   const caption = useRef<HTMLSpanElement>(null)
-  const elements = useRef(new Map<string, SVGElement>())
+  const [elements] = useState(() => new Map<string, SVGElement>())
   const register = useCallback<Register>((key, element) => {
-    if (element) elements.current.set(key, element)
-    else elements.current.delete(key)
-  }, [])
+    if (element) elements.set(key, element)
+    else elements.delete(key)
+  }, [elements])
   const elapsed = useRef(0)
 
   useEffect(() => {
@@ -219,7 +218,7 @@ function AnimatedFigure({
       if (last !== null) elapsed.current += now - last
       last = now
       const state = cycleAt(elapsed.current, frames.tempo ?? DEFAULT_TEMPO)
-      applyPose(elements.current, interpolatePose(rig, frames, state.t))
+      applyPose(elements, interpolatePose(rig, frames, state.t))
       if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
       if (state.finished) {
         elapsed.current = 0
@@ -245,7 +244,7 @@ function AnimatedFigure({
       observer.disconnect()
       document.removeEventListener('visibilitychange', run)
     }
-  }, [playState, rig, frames, startLabel, endLabel])
+  }, [playState, rig, frames, startLabel, endLabel, elements])
 
   const control = {
     playing: { label: 'Пауза', icon: Pause, next: 'paused' as const },

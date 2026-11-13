@@ -38,6 +38,20 @@ describe.each(EXERCISE_IDS)('%s', (id) => {
     expect(length(pose.head, frames[key].head)).toBeLessThan(1)
   })
 
+  it('keeps points that rest on the floor in both frames on the floor', () => {
+    const FLOOR = 126
+    frames.start.limbs.forEach((limb, i) =>
+      limb.points.forEach((point, j) => {
+        const endPoint = frames.end.limbs[i]!.points[j]!
+        if (point[1] !== FLOOR || endPoint[1] !== FLOOR) return
+        for (let k = 1; k < 10; k++) {
+          const current = interpolatePose(rig, frames, k / 10).limbs[i]!.points[j]!
+          expect(Math.abs(current[1] - FLOOR)).toBeLessThan(1)
+        }
+      }),
+    )
+  })
+
   it('keeps limb lengths during the motion', () => {
     for (const t of [0.25, 0.5, 0.75]) {
       const pose = interpolatePose(rig, frames, t)
