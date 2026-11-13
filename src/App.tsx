@@ -47,9 +47,9 @@ export function App() {
     )
   } else {
     screen = (
-      <div className="flex h-dvh flex-col">
+      <div className="pt-safe flex h-dvh flex-col">
         <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="pt-safe mx-auto max-w-lg px-4 pb-8">
+          <div className="mx-auto max-w-lg px-4 pb-8">
             {tab === 'home' && (
               <DashboardScreen
                 onOpenHistory={() => {
