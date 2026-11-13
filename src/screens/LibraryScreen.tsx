@@ -43,8 +43,8 @@ export function LibraryScreen() {
                       <span className="block truncate font-semibold">{info.nameRu}</span>
                       <span className="block truncate text-[13px] text-muted">{info.nameEn}</span>
                     </span>
-                    <Badge tone="band" className="max-w-[40%] shrink-0">
-                      <span className="truncate">{stepLabel(exerciseId, state.stepId)}</span>
+                    <Badge tone="band" className="max-w-[40%] shrink-0 rounded-xl text-right leading-tight whitespace-normal">
+                      {stepLabel(exerciseId, state.stepId)}
                     </Badge>
                     <ChevronRight className="size-5 shrink-0 text-muted" />
                   </button>

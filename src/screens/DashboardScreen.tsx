@@ -76,8 +76,8 @@ export function DashboardScreen({ onOpenHistory }: { onOpenHistory: () => void }
                     {exercise.sets} × {formatRepRange(exercise.repRange.min, exercise.repRange.max, exercise.perSide)}
                   </span>
                 </span>
-                <Badge tone="band" className="max-w-[45%] shrink-0">
-                  <span className="truncate">{stepLabel(exerciseId, stepId)}</span>
+                <Badge tone="band" className="max-w-[45%] shrink-0 rounded-xl text-right leading-tight whitespace-normal">
+                  {stepLabel(exerciseId, stepId)}
                 </Badge>
               </li>
             )
