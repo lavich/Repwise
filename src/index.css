@@ -107,6 +107,10 @@ body {
   }
 }
 
+html[data-ios-standalone] {
+  min-height: min(100lvh, calc(100% + env(safe-area-inset-top)));
+}
+
 body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
