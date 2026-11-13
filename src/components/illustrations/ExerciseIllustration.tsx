@@ -1,9 +1,14 @@
-import { Pause, Play, RotateCcw } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { MODELS } from '@/components/model3d/models'
+import { supportsWebGL } from '@/components/model3d/webgl'
+import { EXERCISES } from '@/domain/exercises'
+import { useAppData } from '@/state/store'
 import type { ExerciseId } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { FRAMES, type LimbKind, type Point, type Prop } from './poses'
-import { buildRig, cycleAt, DEFAULT_TEMPO, interpolatePose, type ResolvedPose } from './rig'
+import { PlaybackBar } from './PlaybackBar'
+import { buildRig, interpolatePose, type ResolvedPose } from './rig'
+import { useAnimationLoop, useReducedMotion } from './useAnimationLoop'
 
 const FLOOR_Y = 128
 const VIEW_BOX = '0 0 160 136'
@@ -115,21 +120,49 @@ function Floor() {
   return <line x1={8} x2={152} y1={FLOOR_Y} y2={FLOOR_Y} strokeWidth={2} className="stroke-border-strong" />
 }
 
-const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-function subscribeReducedMotion(onChange: () => void) {
-  reducedMotionQuery.addEventListener('change', onChange)
-  return () => reducedMotionQuery.removeEventListener('change', onChange)
-}
 
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReducedMotion, () => reducedMotionQuery.matches)
-}
 
-type PlayState = 'playing' | 'paused' | 'finished'
-
+// A chunk that fails to load (offline before caching, or removed by a deploy)
+// falls back to the flat animation instead of breaking the screen.
+const Mannequin3D = lazy(() =>
+  import('@/components/model3d/Mannequin3D').catch(() => ({
+    default: ({ fallback }: { fallback: ReactNode }) => <>{fallback}</>,
+  })),
+)
 
 export function ExerciseIllustration({
+  exerciseId,
+  title,
+  className,
+}: {
+  exerciseId: ExerciseId
+  title: string
+  className?: string
+}) {
+  const theme = useAppData().settings.theme
+  const model = MODELS[exerciseId]
+  const flat = <FlatIllustration key={exerciseId} exerciseId={exerciseId} title={title} className={className} />
+  if (!model || !supportsWebGL()) return flat
+  const frames = FRAMES[exerciseId]
+  return (
+    <Suspense fallback={flat}>
+      <Mannequin3D
+        key={exerciseId}
+        model={model}
+        muscles={EXERCISES[exerciseId].muscles}
+        title={title}
+        theme={theme}
+        startLabel={frames.startLabel ?? 'Начало'}
+        endLabel={frames.endLabel ?? 'Конец'}
+        fallback={flat}
+        className={className}
+      />
+    </Suspense>
+  )
+}
+
+function FlatIllustration({
   exerciseId,
   title,
   className,
@@ -196,7 +229,6 @@ function AnimatedFigure({
   endLabel: string
   className?: string
 }) {
-  const [playState, setPlayState] = useState<PlayState>('playing')
   const container = useRef<HTMLDivElement>(null)
   const caption = useRef<HTMLSpanElement>(null)
   const [elements] = useState(() => new Map<string, SVGElement>())
@@ -204,54 +236,14 @@ function AnimatedFigure({
     if (element) elements.set(key, element)
     else elements.delete(key)
   }, [elements])
-  const elapsed = useRef(0)
-
-  useEffect(() => {
-    if (playState !== 'playing') return
-    const element = container.current
-    if (!element) return
-    let frame = 0
-    let last: number | null = null
-    let onScreen = true
-
-    const tick = (now: number) => {
-      if (last !== null) elapsed.current += now - last
-      last = now
-      const state = cycleAt(elapsed.current, frames.tempo ?? DEFAULT_TEMPO)
+  const { playState, setPlayState } = useAnimationLoop(
+    container,
+    (state) => {
       applyPose(elements, interpolatePose(rig, frames, state.t))
       if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
-      if (state.finished) {
-        elapsed.current = 0
-        setPlayState('finished')
-        return
-      }
-      frame = requestAnimationFrame(tick)
-    }
-    const run = () => {
-      cancelAnimationFrame(frame)
-      last = null
-      if (onScreen && document.visibilityState === 'visible') frame = requestAnimationFrame(tick)
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      onScreen = entry?.isIntersecting ?? true
-      run()
-    })
-    observer.observe(element)
-    document.addEventListener('visibilitychange', run)
-    run()
-    return () => {
-      cancelAnimationFrame(frame)
-      observer.disconnect()
-      document.removeEventListener('visibilitychange', run)
-    }
-  }, [playState, rig, frames, startLabel, endLabel, elements])
-
-  const control = {
-    playing: { label: 'Пауза', icon: Pause, next: 'paused' as const },
-    paused: { label: 'Запустить', icon: Play, next: 'playing' as const },
-    finished: { label: 'Повторить', icon: RotateCcw, next: 'playing' as const },
-  }[playState]
-  const Icon = control.icon
+    },
+    frames.tempo,
+  )
 
   return (
     <div ref={container} className={cn('rounded-2xl bg-surface-2 p-3', className)}>
@@ -259,19 +251,7 @@ function AnimatedFigure({
         <Floor />
         <Figure pose={startPose} props={frames.start.props} register={register} />
       </svg>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <span ref={caption} className="pl-1 text-[13px] font-medium text-muted" aria-hidden="true">
-          {startLabel}
-        </span>
-        <button
-          type="button"
-          onClick={() => setPlayState(control.next)}
-          className="flex h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-muted active:bg-surface"
-        >
-          <Icon className="size-4" />
-          {control.label}
-        </button>
-      </div>
+      <PlaybackBar playState={playState} onChange={setPlayState} caption={startLabel} captionRef={caption} />
     </div>
   )
 }
