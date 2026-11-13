@@ -1,11 +1,4 @@
-export interface Tempo {
-  toEnd: number
-  holdEnd: number
-  toStart: number
-  holdStart: number
-}
-
-export type Phase = 'to-end' | 'hold-end' | 'to-start' | 'hold-start'
+type Phase = 'to-end' | 'hold-end' | 'to-start' | 'hold-start'
 
 export interface CycleState {
   t: number
@@ -13,14 +6,15 @@ export interface CycleState {
   finished: boolean
 }
 
-export const DEFAULT_TEMPO: Tempo = { toEnd: 1500, holdEnd: 400, toStart: 1500, holdStart: 600 }
+export const TEMPO = { toEnd: 1500, holdEnd: 400, toStart: 1500, holdStart: 600 }
 export const MAX_CYCLES = 5
 
 const easeInOutSine = (x: number) => (1 - Math.cos(Math.PI * x)) / 2
 
-export function cycleAt(elapsedMs: number, tempo: Tempo = DEFAULT_TEMPO, maxCycles = MAX_CYCLES): CycleState {
+export function cycleAt(elapsedMs: number): CycleState {
+  const tempo = TEMPO
   const length = tempo.toEnd + tempo.holdEnd + tempo.toStart + tempo.holdStart
-  if (elapsedMs >= length * maxCycles) return { t: 0, phase: 'hold-start', finished: true }
+  if (elapsedMs >= length * MAX_CYCLES) return { t: 0, phase: 'hold-start', finished: true }
   let s = elapsedMs % length
   if (s < tempo.toEnd) return { t: easeInOutSine(s / tempo.toEnd), phase: 'to-end', finished: false }
   s -= tempo.toEnd

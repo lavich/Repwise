@@ -33,7 +33,7 @@ export function ExerciseIllustration({
   const theme = useAppData().settings.theme
   const failed = whenUnavailable ? (
     <div className={cn('space-y-2', className)}>
-      <p className="px-1 text-[13px] text-muted">3D-модель недоступна на этом устройстве.</p>
+      <p className="px-1 text-[13px] text-muted">3D-модель сейчас недоступна.</p>
       {whenUnavailable}
     </div>
   ) : null
@@ -61,7 +61,7 @@ export function ExerciseIllustration({
 
 function ModelPlaceholder({ title, size, className }: { title: string; size: FigureSize; className?: string }) {
   return (
-    <div className={cn('rounded-2xl bg-surface-2 p-3', className)} role="img" aria-label={`Загрузка модели: ${title}`}>
+    <div className={cn('rounded-2xl bg-surface-2 p-3', className)} aria-busy="true" aria-label={`Загрузка модели: ${title}`}>
       <div className={cn('mx-auto aspect-[160/136] w-full', FIGURE_WIDTH[size])} />
       <PlaybackBar playState={null} onChange={() => {}} caption="" />
     </div>

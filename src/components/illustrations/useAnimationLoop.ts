@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
-import { cycleAt, DEFAULT_TEMPO, type CycleState, type Tempo } from './cycle'
+import { cycleAt, type CycleState } from './cycle'
 
 export type PlayState = 'playing' | 'paused' | 'finished'
 
@@ -19,7 +19,6 @@ export function useReducedMotion(): boolean {
 export function useAnimationLoop(
   container: RefObject<HTMLElement | null>,
   onFrame: (state: CycleState) => void,
-  tempo: Tempo = DEFAULT_TEMPO,
   enabled = true,
 ) {
   const [playState, setPlayState] = useState<PlayState>('playing')
@@ -41,7 +40,7 @@ export function useAnimationLoop(
     const tick = (now: number) => {
       if (last !== null) elapsed.current += now - last
       last = now
-      const state = cycleAt(elapsed.current, tempo)
+      const state = cycleAt(elapsed.current)
       frameHandler.current(state)
       if (state.finished) {
         elapsed.current = 0
@@ -67,7 +66,7 @@ export function useAnimationLoop(
       observer.disconnect()
       document.removeEventListener('visibilitychange', run)
     }
-  }, [enabled, playState, container, tempo])
+  }, [enabled, playState, container])
 
   return { playState, setPlayState }
 }

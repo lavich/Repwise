@@ -188,7 +188,7 @@ export default function Mannequin3D({
     position.current = state.t
     renderAt(stage.current, model, state.t)
     if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
-  }, undefined, gltf !== null && !failed && !reducedMotion)
+  }, gltf !== null && !failed && !reducedMotion)
 
   useEffect(() => {
     const element = canvas.current
