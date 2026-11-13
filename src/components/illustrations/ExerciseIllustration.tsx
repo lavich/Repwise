@@ -157,8 +157,9 @@ export function ExerciseIllustration({
   )
   if (!model || !supportsWebGL()) return failed
   const frames = FRAMES[exerciseId]
+  const loading = <ModelPlaceholder title={title} size={size} className={className} />
   return (
-    <Suspense fallback={flat}>
+    <Suspense fallback={loading}>
       <Mannequin3D
         key={exerciseId}
         model={model}
@@ -167,12 +168,21 @@ export function ExerciseIllustration({
         theme={theme}
         startLabel={frames.startLabel ?? 'Начало'}
         endLabel={frames.endLabel ?? 'Конец'}
-        fallback={flat}
+        fallback={loading}
         failedFallback={failed}
         size={size}
         className={className}
       />
     </Suspense>
+  )
+}
+
+function ModelPlaceholder({ title, size, className }: { title: string; size: FigureSize; className?: string }) {
+  return (
+    <div className={cn('rounded-2xl bg-surface-2 p-3', className)} role="img" aria-label={`Загрузка модели: ${title}`}>
+      <div className={cn('mx-auto aspect-[160/136] w-full', FIGURE_WIDTH[size])} />
+      <PlaybackBar playState={null} onChange={() => {}} caption="" />
+    </div>
   )
 }
 

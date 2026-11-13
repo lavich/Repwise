@@ -83,11 +83,13 @@ export default function MuscleModel3D({
   levels,
   theme,
   label,
+  loading,
   fallback,
 }: {
   levels: MuscleLevel[]
   theme: ThemePreference
   label: string
+  loading: ReactNode
   fallback: ReactNode
 }) {
   const [gltf, setGltf] = useState<GLTF | null>(null)
@@ -167,7 +169,8 @@ export default function MuscleModel3D({
     return () => cancelAnimationFrame(frame)
   }, [theme, gltf, render])
 
-  if (failed || !gltf) return <>{fallback}</>
+  if (failed) return <>{fallback}</>
+  if (!gltf) return <>{loading}</>
 
   return (
     <canvas
