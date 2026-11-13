@@ -21,7 +21,7 @@ interface Stage {
   dispose: () => void
 }
 
-// Same proportions as the flat illustration, so swapping them does not shift the layout.
+// Same proportions as the loading placeholder, so swapping them does not shift the layout.
 const ASPECT = 160 / 136
 
 const TURN_PER_SECOND = THREE.MathUtils.degToRad(30)
@@ -188,7 +188,7 @@ export default function Mannequin3D({
     position.current = state.t
     renderAt(stage.current, model, state.t)
     if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
-  }, undefined, gltf !== null && !failed && !reducedMotion)
+  }, gltf !== null && !failed && !reducedMotion)
 
   useEffect(() => {
     const element = canvas.current

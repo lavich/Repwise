@@ -64,9 +64,10 @@ const MuscleModel3D = lazy(() =>
 function MuscleFigures({ levels, label, fallback }: { levels: MuscleLevel[]; label: string; fallback: ReactNode }) {
   const theme = useAppData().settings.theme
   if (!supportsWebGL()) return <>{fallback}</>
+  const loading = <div role="img" aria-label={label} className="mx-auto aspect-square w-full max-w-72" />
   return (
-    <Suspense fallback={fallback}>
-      <MuscleModel3D levels={levels} theme={theme} label={label} fallback={fallback} />
+    <Suspense fallback={loading}>
+      <MuscleModel3D levels={levels} theme={theme} label={label} loading={loading} fallback={fallback} />
     </Suspense>
   )
 }

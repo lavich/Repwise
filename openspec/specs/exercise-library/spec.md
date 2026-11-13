@@ -1,7 +1,7 @@
 # exercise-library Specification
 
 ## Purpose
-Справочник упражнений: описание техники, трёхмерная модель, выполняющая упражнение, и схема работающих мышц на ней; плоские иллюстрации — запасной вариант (`src/domain/exercises.ts`, `src/components/model3d/`, `src/components/illustrations/`, `src/components/muscles/`, `tools/blender/`).
+Справочник упражнений: описание техники, трёхмерная модель, выполняющая упражнение, и схема работающих мышц на ней; без WebGL — SVG-схема мышц (`src/domain/exercises.ts`, `src/components/model3d/`, `src/components/illustrations/`, `src/components/muscles/`, `tools/blender/`).
 
 ## Requirements
 
