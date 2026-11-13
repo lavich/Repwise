@@ -20,7 +20,7 @@ export function SummaryScreen({ sessionId, onClose }: { sessionId: string; onClo
   const painful = session ? hadPain(session) : false
 
   return (
-    <div className="pt-safe flex h-dvh flex-col">
+    <div className="pt-safe fixed inset-0 flex flex-col">
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="pb-safe mx-auto max-w-lg px-4">
           {session && (
