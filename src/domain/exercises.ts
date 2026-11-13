@@ -1,6 +1,6 @@
 import type { BandLevel, Exercise, ExerciseId, LoadStep } from './types'
 
-const band = (...bands: BandLevel[]): LoadStep => ({ id: bands.join('+'), label: bands.join(' + '), bands })
+const band = (...bands: BandLevel[]): LoadStep => ({ id: bands.join('+'), label: bands.join('+'), bands })
 const variant = (id: string, label: string, ...bands: BandLevel[]): LoadStep => ({ id, label, bands })
 
 // Pairs sit between single bands by the sum of their range midpoints: L1 10, L2 25, L3 45 kg.
@@ -51,7 +51,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       variant('decline', 'Ноги на стуле'),
       variant('band-L1', 'С лентой L1', 'L1'),
       variant('band-L2', 'С лентой L2', 'L2'),
-      variant('band-L1+L2', 'С лентой L1 + L2', 'L1', 'L2'),
+      variant('band-L1+L2', 'С лентой L1+L2', 'L1', 'L2'),
       variant('band-L3', 'С лентой L3', 'L3'),
     ],
     defaultStepId: 'floor',
@@ -226,10 +226,10 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       variant('bulgarian', 'Болгарский'),
       variant('band-L1', 'С лентой L1', 'L1'),
       variant('band-L2', 'С лентой L2', 'L2'),
-      variant('band-L1+L2', 'С лентой L1 + L2', 'L1', 'L2'),
+      variant('band-L1+L2', 'С лентой L1+L2', 'L1', 'L2'),
       variant('band-L3', 'С лентой L3', 'L3'),
-      variant('band-L1+L3', 'С лентой L1 + L3', 'L1', 'L3'),
-      variant('band-L2+L3', 'С лентой L2 + L3', 'L2', 'L3'),
+      variant('band-L1+L3', 'С лентой L1+L3', 'L1', 'L3'),
+      variant('band-L2+L3', 'С лентой L2+L3', 'L2', 'L3'),
     ],
     defaultStepId: 'bulgarian',
     startingPosition:
@@ -326,7 +326,15 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     repRange: { min: 10, max: 15 },
     perSide: false,
     sets: 3,
-    loadSteps: [...BAND_LADDER, variant('single-leg-L2', 'Одна нога с L2', 'L2')],
+    loadSteps: [
+      band('L1'),
+      band('L2'),
+      band('L1', 'L2'),
+      band('L3'),
+      variant('single-leg-L2', 'Одна нога с L2', 'L2'),
+      band('L1', 'L3'),
+      band('L2', 'L3'),
+    ],
     defaultStepId: 'L2',
     startingPosition:
       'Лёжа на спине, колени согнуты, стопы на полу. Лента проходит поверх таза, концы петли прижаты ладонями к полу у таза. Если внизу лента провисает, намотайте её на кисти по одному обороту.',
@@ -353,12 +361,12 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     loadSteps: [
       ...BAND_LADDER,
       variant('one-arm-L3', 'Одна рука с L3', 'L3'),
-      variant('one-arm-L1+L3', 'Одна рука с L1 + L3', 'L1', 'L3'),
-      variant('one-arm-L2+L3', 'Одна рука с L2 + L3', 'L2', 'L3'),
+      variant('one-arm-L1+L3', 'Одна рука с L1+L3', 'L1', 'L3'),
+      variant('one-arm-L2+L3', 'Одна рука с L2+L3', 'L2', 'L3'),
     ],
     defaultStepId: 'L1',
     startingPosition:
-      'Встаньте одной стопой на конец ленты, другую ногу поставьте вперёд. Возьмите противоположный конец обеими руками за головой, локти направлены вверх. В варианте одной рукой держите ленту одной рукой, локоть направлен вверх.',
+      'Встаньте одной стопой на конец ленты, другую ногу поставьте вперёд. Возьмите противоположный конец обеими руками за головой, локти направлены вверх. Одной рукой: возьмите конец ленты одной кистью за головой, локоть направлен вверх.',
     steps: ['Выпрямите руки над головой.', 'Медленно согните их за головой.'],
     movement: 'Локти неподвижны и направлены вверх, движутся только предплечья.',
     breathing: 'Выдох — при разгибании, вдох — при сгибании.',
