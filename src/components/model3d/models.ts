@@ -16,7 +16,7 @@ export interface Model3d {
 }
 
 export const MODELS: Partial<Record<ExerciseId, Model3d>> = {
-  'push-up': { clip: 'pushup', duration: 18 / 30, camera: { azimuth: 40, elevation: 4 } },
+  'push-up': { clip: 'pushup', duration: 23 / 30, camera: { azimuth: 40, elevation: 4 } },
   'band-squat': { clip: 'band-squat', duration: 1, camera: { azimuth: 30, elevation: 10 }, band: true },
 }
 

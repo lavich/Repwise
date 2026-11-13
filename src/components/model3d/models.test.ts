@@ -15,8 +15,8 @@ describe('3D models', () => {
   it('maps the cycle position to time inside the clip', () => {
     const model = MODELS['push-up']!
     expect(clipTime(model, 0)).toBe(0)
-    expect(clipTime(model, 1)).toBeCloseTo(0.6)
-    expect(clipTime(model, 1.5)).toBeCloseTo(0.6)
+    expect(clipTime(model, 1)).toBeCloseTo(23 / 30)
+    expect(clipTime(model, 1.5)).toBeCloseTo(23 / 30)
   })
 
   it('has models only for push-ups and banded squats', () => {

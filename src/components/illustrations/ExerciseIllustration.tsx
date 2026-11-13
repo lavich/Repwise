@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { MODELS } from '@/components/model3d/models'
 import { EXERCISES } from '@/domain/exercises'
 import { useAppData } from '@/state/store'
@@ -122,7 +122,13 @@ function Floor() {
 
 
 
-const Mannequin3D = lazy(() => import('@/components/model3d/Mannequin3D'))
+// A chunk that fails to load (offline before caching, or removed by a deploy)
+// falls back to the flat animation instead of breaking the screen.
+const Mannequin3D = lazy(() =>
+  import('@/components/model3d/Mannequin3D').catch(() => ({
+    default: ({ fallback }: { fallback: ReactNode }) => <>{fallback}</>,
+  })),
+)
 
 let webglSupport: boolean | null = null
 

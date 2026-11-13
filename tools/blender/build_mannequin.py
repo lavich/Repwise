@@ -19,6 +19,8 @@ MUSCLE_IDS = [
     'upper-back', 'lower-back', 'glutes', 'quads', 'hamstrings', 'adductors', 'calves',
 ]
 SQUAT_FRAMES = 30
+# Distance of the shoulder joints from the midline in the rest pose.
+SHOULDER_X = 0.174
 
 
 def reset_scene():
@@ -43,10 +45,9 @@ def load_model():
 
 
 def load_pushup(armature):
-    before = set(bpy.data.actions)
     for o in import_glb(SOURCES / 'pushup.glb'):
         bpy.data.objects.remove(o)
-    action = next(a for a in bpy.data.actions if a not in before)
+    action = bpy.data.actions['Pushup']
     action.name = 'pushup'
     action.use_fake_user = True
     return action
@@ -87,6 +88,21 @@ def rotate_about_head(armature, name, axis, degrees):
     bpy.context.view_layer.update()
 
 
+def check_squat(armature):
+    pose = armature.pose.bones
+    feet = {}
+    for frame in range(SQUAT_FRAMES + 1):
+        bpy.context.scene.frame_set(frame)
+        for side, sign in (('l', 1), ('r', -1)):
+            foot = armature.matrix_world @ pose[f'foot_{side}'].head
+            if (foot - feet.setdefault(side, foot.copy())).length > 0.002:
+                raise RuntimeError(f'foot_{side} moves at frame {frame}')
+            elbow = armature.matrix_world @ pose[f'lowerarm_{side}'].head
+            shoulder = armature.matrix_world @ pose[f'upperarm_{side}'].head
+            if elbow.x * sign < 0.25 or elbow.z > shoulder.z:
+                raise RuntimeError(f'elbow_{side} is inside the torso or above the shoulder at frame {frame}')
+
+
 def build_squat(armature):
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
@@ -104,8 +120,8 @@ def build_squat(armature):
         flat.target = anchor
         shoulder = head_world(armature, f'upperarm_{side}')
         hand_target = empty(f'hand_target_{side}', shoulder + Vector((0.02 * sign, -0.12, -0.02)), armature, 'spine_03')
-        elbow_pole = empty(f'elbow_pole_{side}', shoulder + Vector((0.15 * sign, 0.05, -0.5)), armature, 'spine_03')
-        add_ik(pose[f'lowerarm_{side}'], hand_target, elbow_pole, pole_angle=math.radians(180 if sign > 0 else 0))
+        elbow_pole = empty(f'elbow_pole_{side}', shoulder + Vector((0.22 * sign, -0.45, -0.5)), armature, 'spine_03')
+        add_ik(pose[f'lowerarm_{side}'], hand_target, elbow_pole, pole_angle=math.radians(-90))
         targets += [foot_target, knee_pole, anchor, hand_target, elbow_pole]
 
     def key_pose(frame, drop, back, lean):
@@ -130,7 +146,7 @@ def build_squat(armature):
     def grip_band(frame):
         forward = Vector((0, 1, 0))
         for side, sign in (('l', 1), ('r', -1)):
-            for finger, angle in (('index', 80), ('middle', 85), ('ring', 85), ('pinky', 80), ('thumb', 35)):
+            for finger, angle in (('index', 80), ('middle', 85), ('ring', 85), ('pinky', 80), ('thumb', 60)):
                 for joint in ('01', '02', '03'):
                     pose_bone = pose[f'{finger}_{joint}_{side}']
                     axis = pose_bone.bone.matrix_local.to_3x3().inverted() @ forward
@@ -152,6 +168,7 @@ def build_squat(armature):
     )
     squat = armature.animation_data.action
     squat.name = 'band-squat'
+    check_squat(armature)
     squat.use_fake_user = True
     bpy.data.actions.remove(driver_action)
     for obj in targets:
@@ -168,6 +185,9 @@ def classify(bone, normal, position, forward):
     outward = normal.x * (1 if side_x >= 0 else -1)
     base = bone.rsplit('_', 1)[0] if bone.endswith(('_l', '_r')) else bone
     if base == 'thigh':
+        # The lower half of the buttocks is skinned to the thigh bones.
+        if facing < -0.2 and position.z > 0.8:
+            return 'glutes'
         if outward < -0.45:
             return 'adductors'
         return 'quads' if facing > 0 else 'hamstrings'
@@ -183,13 +203,15 @@ def classify(bone, normal, position, forward):
         return 'obliques'
     if base in ('spine_02', 'spine_03'):
         if facing > 0.2:
-            return 'chest' if position.z > 1.24 else ('abs' if abs(side_x) < 0.07 else 'obliques')
+            if position.z > 1.24:
+                return 'chest' if abs(side_x) < SHOULDER_X - 0.05 else 'front-delts'
+            return 'abs' if abs(side_x) < 0.07 else 'obliques'
         if facing < -0.2:
             return 'upper-back' if abs(side_x) < 0.09 or position.z > 1.36 else 'lats'
         return 'lats' if position.z > 1.12 else 'obliques'
     if base == 'clavicle':
         if facing > 0.3:
-            return 'front-delts'
+            return 'chest' if abs(side_x) < SHOULDER_X - 0.05 else 'front-delts'
         return 'upper-back' if facing < -0.3 else 'side-delts'
     if base == 'upperarm':
         along = position.x * (1 if side_x >= 0 else -1)
@@ -199,7 +221,7 @@ def classify(bone, normal, position, forward):
             if facing < -0.3:
                 return 'upper-back'
             return 'side-delts'
-        if normal.z > 0.5 or facing > 0.2:
+        if facing > 0.2 or (normal.z > 0.5 and facing > -0.2):
             return 'biceps'
         return 'triceps'
     return None
@@ -213,7 +235,8 @@ def mark_muscles(armature, mesh):
     for vertex in mesh.data.vertices:
         weights = [(g.weight, groups[g.group]) for g in vertex.groups if g.weight > 0]
         bone = max(weights)[1] if weights else ''
-        muscle = classify(bone, vertex.normal, mesh.matrix_world @ vertex.co, forward)
+        normal = (mesh.matrix_world.to_3x3() @ vertex.normal).normalized()
+        muscle = classify(bone, normal, mesh.matrix_world @ vertex.co, forward)
         value = MUSCLE_IDS.index(muscle) + 1 if muscle else 0
         attribute.data[vertex.index].value = float(value)
         counts[muscle] = counts.get(muscle, 0) + 1
@@ -250,7 +273,7 @@ def render_previews(armature, mesh, squat, pushup):
     armature.animation_data.action = pushup
     if pushup.slots:
         armature.animation_data.action_slot = pushup.slots[0]
-    for frame in (0, 9, 18):
+    for frame in (0, 12, 23):
         scene.frame_set(frame)
         shoot(f'pushup-side-{frame}', (3.5, 0, 0.6), (90, 0, 90))
 

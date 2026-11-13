@@ -66,6 +66,9 @@ interface Stage {
   dispose: () => void
 }
 
+// Same proportions as the flat illustration, so swapping them does not shift the layout.
+const ASPECT = 160 / 136
+
 function frameCamera(camera: THREE.OrthographicCamera, box: THREE.Box3, aspect: number) {
   const size = box.getSize(new THREE.Vector3())
   const radius = Math.max(size.x, size.y, size.z) * 0.52
@@ -79,6 +82,15 @@ function frameCamera(camera: THREE.OrthographicCamera, box: THREE.Box3, aspect: 
 
 function createStage(canvas: HTMLCanvasElement, gltf: GLTF, model: Model3d, levels: number[]): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+  try {
+    return buildStage(renderer, gltf, model, levels)
+  } catch (error) {
+    renderer.dispose()
+    throw error
+  }
+}
+
+function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, levels: number[]): Stage {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   const scene = new THREE.Scene()
   scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6))
@@ -132,7 +144,7 @@ function createStage(canvas: HTMLCanvasElement, gltf: GLTF, model: Model3d, leve
   camera.lookAt(0, 0, 0)
   camera.near = 0.1
   camera.far = 20
-  frameCamera(camera, box, 4 / 3)
+  frameCamera(camera, box, ASPECT)
 
   const bandLines: Stage['bandLines'] = []
   const bandMaterial = new THREE.LineBasicMaterial({ color: themeColor('--band') })
@@ -229,7 +241,7 @@ export default function Mannequin3D({
     position.current = state.t
     renderAt(stage.current, model, state.t)
     if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
-  }, undefined, gltf !== null && !failed)
+  }, undefined, gltf !== null && !failed && !reducedMotion)
 
   useEffect(() => {
     const element = canvas.current
@@ -244,15 +256,12 @@ export default function Mannequin3D({
     stage.current = created
     const resize = () => {
       const width = element.clientWidth
-      created.renderer.setSize(width, width * 0.75, false)
+      created.renderer.setSize(width, width / ASPECT, false)
       renderAt(created, model, position.current)
     }
     const observer = new ResizeObserver(resize)
     observer.observe(element)
-    const onLost = (event: Event) => {
-      event.preventDefault()
-      setFailed(true)
-    }
+    const onLost = () => setFailed(true)
     element.addEventListener('webglcontextlost', onLost)
     resize()
     return () => {
@@ -261,22 +270,28 @@ export default function Mannequin3D({
       created.dispose()
       stage.current = null
     }
-  }, [gltf, model, muscles])
+  }, [gltf, model, muscles, failed])
 
+  // Child effects run before App writes data-theme, so the new colours are
+  // read on the next frame.
   useEffect(() => {
-    const current = stage.current
-    if (!current) return
-    current.uniforms.uBody.value = themeColor('--body-3d')
-    current.uniforms.uSecondary.value = themeColor('--muscle-1')
-    current.uniforms.uPrimary.value = themeColor('--muscle-3')
-    renderAt(current, model, position.current)
+    const frame = requestAnimationFrame(() => {
+      const current = stage.current
+      if (!current) return
+      current.uniforms.uBody.value = themeColor('--body-3d')
+      current.uniforms.uSecondary.value = themeColor('--muscle-1')
+      current.uniforms.uPrimary.value = themeColor('--muscle-3')
+      renderAt(current, model, position.current)
+    })
+    return () => cancelAnimationFrame(frame)
   }, [theme, gltf, model])
 
   useEffect(() => {
     if (!reducedMotion || !stage.current) return
     position.current = 0
     renderAt(stage.current, model, 0)
-  }, [reducedMotion, gltf, model])
+    if (caption.current) caption.current.textContent = startLabel
+  }, [reducedMotion, gltf, model, startLabel])
 
   const drag = useRef<{ x: number; rotation: number } | null>(null)
 
@@ -288,14 +303,14 @@ export default function Mannequin3D({
         ref={canvas}
         role="img"
         aria-label={`Трёхмерная модель: ${title}`}
-        className="mx-auto block aspect-[4/3] w-full max-w-80 touch-pan-y"
+        className="mx-auto block aspect-[160/136] w-full max-w-72 touch-pan-y"
         onPointerDown={(event) => {
-          if (!stage.current) return
+          if (!stage.current || !event.isPrimary) return
           event.currentTarget.setPointerCapture(event.pointerId)
           drag.current = { x: event.clientX, rotation: stage.current.pivot.rotation.y }
         }}
         onPointerMove={(event) => {
-          if (!drag.current || !stage.current) return
+          if (!drag.current || !stage.current || !event.isPrimary) return
           stage.current.pivot.rotation.y = drag.current.rotation + (event.clientX - drag.current.x) * 0.012
           renderAt(stage.current, model, position.current)
         }}
