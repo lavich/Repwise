@@ -68,6 +68,12 @@ describe('exercise catalog', () => {
     },
   )
 
+  it('names the strongest band first in pairs', () => {
+    const pairs = EXERCISE_IDS.flatMap((id) => EXERCISES[id].loadSteps.filter((step) => step.bands.length === 2))
+    expect(pairs.map((step) => step.label.match(/L\d\+L\d/)?.[0])).toEqual(pairs.map((step) => `${step.bands[0]}+${step.bands[1]}`))
+    expect(pairs.every((step) => step.bands[0] === 'L3')).toBe(true)
+  })
+
   it('never stacks more than two bands', () => {
     const counts = EXERCISE_IDS.flatMap((id) => EXERCISES[id].loadSteps.map((step) => step.bands.length))
     expect(Math.max(...counts)).toBe(2)

@@ -1,10 +1,11 @@
 import type { BandLevel, Exercise, ExerciseId, LoadStep } from './types'
 
-const band = (...bands: BandLevel[]): LoadStep => ({ id: bands.join('+'), label: bands.join('+'), bands })
+// Ids list bands from the lightest, as saved by earlier versions; labels keep the given order, the strongest band first.
+const band = (...bands: BandLevel[]): LoadStep => ({ id: [...bands].sort().join('+'), label: bands.join('+'), bands })
 const variant = (id: string, label: string, ...bands: BandLevel[]): LoadStep => ({ id, label, bands })
 
 // L1+L2 pulls about the same as L3, so only pairs with L3 extend the ladder.
-const BAND_LADDER = [band('L1'), band('L2'), band('L3'), band('L1', 'L3'), band('L2', 'L3')]
+const BAND_LADDER = [band('L1'), band('L2'), band('L3'), band('L3', 'L1'), band('L3', 'L2')]
 // The press stretches a ~1 m loop from the feet to above the head by half at the start already, so L3 is out of reach there.
 const OVERHEAD_PRESS_LADDER = [band('L1'), band('L2')]
 
@@ -226,8 +227,8 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       variant('band-L1', 'С лентой L1', 'L1'),
       variant('band-L2', 'С лентой L2', 'L2'),
       variant('band-L3', 'С лентой L3', 'L3'),
-      variant('band-L1+L3', 'С лентой L1+L3', 'L1', 'L3'),
-      variant('band-L2+L3', 'С лентой L2+L3', 'L2', 'L3'),
+      variant('band-L1+L3', 'С лентой L3+L1', 'L3', 'L1'),
+      variant('band-L2+L3', 'С лентой L3+L2', 'L3', 'L2'),
     ],
     defaultStepId: 'bulgarian',
     startingPosition:
@@ -329,8 +330,8 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       band('L2'),
       band('L3'),
       variant('single-leg-L2', 'Одна нога с L2', 'L2'),
-      band('L1', 'L3'),
-      band('L2', 'L3'),
+      band('L3', 'L1'),
+      band('L3', 'L2'),
     ],
     defaultStepId: 'L2',
     startingPosition:
@@ -358,8 +359,8 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     loadSteps: [
       ...BAND_LADDER,
       variant('one-arm-L3', 'Одна рука с L3', 'L3'),
-      variant('one-arm-L1+L3', 'Одна рука с L1+L3', 'L1', 'L3'),
-      variant('one-arm-L2+L3', 'Одна рука с L2+L3', 'L2', 'L3'),
+      variant('one-arm-L1+L3', 'Одна рука с L3+L1', 'L3', 'L1'),
+      variant('one-arm-L2+L3', 'Одна рука с L3+L2', 'L3', 'L2'),
     ],
     defaultStepId: 'L1',
     startingPosition:
