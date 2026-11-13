@@ -3,12 +3,13 @@ import type { BandLevel, Exercise, ExerciseId, LoadStep } from './types'
 const band = (...bands: BandLevel[]): LoadStep => ({ id: bands.join('+'), label: bands.join(' + '), bands })
 const variant = (id: string, label: string, ...bands: BandLevel[]): LoadStep => ({ id, label, bands })
 
-const BAND_LADDER = [band('L1'), band('L2'), band('L3'), band('L2', 'L3')]
-const LIGHT_BAND_LADDER = [band('L1'), band('L2'), band('L3')]
-// Overhead work stretches a ~1 m loop by half at the start already, so L3 is out of reach there.
-const OVERHEAD_LADDER = [band('L1'), band('L2')]
+// Pairs sit between single bands by the sum of their range midpoints: L1 10, L2 25, L3 45 kg.
+const BAND_LADDER = [band('L1'), band('L2'), band('L1', 'L2'), band('L3'), band('L1', 'L3'), band('L2', 'L3')]
+// The press stretches a ~1 m loop from the feet to above the head by half at the start already, so L3 is out of reach there.
+const OVERHEAD_PRESS_LADDER = [band('L1'), band('L2'), band('L1', 'L2')]
 
 const BAND_CHECK = 'Перед подходом проверьте ленту на надрывы и держите её подальше от лица.'
+const TWO_BANDS = 'Две ленты складывайте рядом и берите вместе, чтобы обе натягивались одинаково.'
 const FOOT_ANCHOR = 'Лента должна лежать под серединой стопы и не соскальзывать при натяжении.'
 
 export const EXERCISES: Record<ExerciseId, Exercise> = {
@@ -33,7 +34,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Вниз — 2–3 секунды под контролем, вверх — быстрее. Пятки не отрываются от пола.',
     breathing: 'Вдох — при опускании, выдох — при подъёме.',
     commonMistakes: ['Колени сводятся внутрь.', 'Округление спины внизу.', 'Неполная амплитуда.'],
-    tips: [FOOT_ANCHOR, BAND_CHECK],
+    tips: [FOOT_ANCHOR, TWO_BANDS, BAND_CHECK],
   },
   'push-up': {
     id: 'push-up',
@@ -50,6 +51,8 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       variant('decline', 'Ноги на стуле'),
       variant('band-L1', 'С лентой L1', 'L1'),
       variant('band-L2', 'С лентой L2', 'L2'),
+      variant('band-L1+L2', 'С лентой L1 + L2', 'L1', 'L2'),
+      variant('band-L3', 'С лентой L3', 'L3'),
     ],
     defaultStepId: 'floor',
     startingPosition:
@@ -61,7 +64,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Корпус и таз двигаются вместе, без прогиба в пояснице.',
     breathing: 'Вдох — при опускании, выдох — при выжимании.',
     commonMistakes: ['Провисание таза.', 'Локти разведены в стороны под 90°.', 'Неполная амплитуда.'],
-    tips: ['Стул для отжиманий — устойчивый, без колёсиков, упирается в стену.', BAND_CHECK],
+    tips: ['Стул для отжиманий — устойчивый, без колёсиков, упирается в стену.', TWO_BANDS, BAND_CHECK],
   },
   'seated-band-row': {
     id: 'seated-band-row',
@@ -86,6 +89,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     commonMistakes: ['Раскачивание корпусом.', 'Плечи поднимаются к ушам.', 'Быстрый возврат без контроля.'],
     tips: [
       'Каждый раз наматывайте ленту одинаково — иначе нагрузку разных тренировок не сравнить.',
+      TWO_BANDS,
       BAND_CHECK,
     ],
   },
@@ -110,7 +114,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Движение — в тазобедренном суставе, угол в коленях почти не меняется.',
     breathing: 'Вдох — при наклоне, выдох — при подъёме.',
     commonMistakes: ['Округление спины.', 'Приседание вместо наклона.', 'Переразгибание поясницы вверху.'],
-    tips: [FOOT_ANCHOR, 'Каждый раз наматывайте ленту одинаково.', BAND_CHECK],
+    tips: [FOOT_ANCHOR, 'Каждый раз наматывайте ленту одинаково.', TWO_BANDS, BAND_CHECK],
   },
   'band-overhead-press': {
     id: 'band-overhead-press',
@@ -121,7 +125,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     repRange: { min: 8, max: 12 },
     perSide: false,
     sets: 3,
-    loadSteps: OVERHEAD_LADDER,
+    loadSteps: OVERHEAD_PRESS_LADDER,
     defaultStepId: 'L1',
     startingPosition:
       'Встаньте на ленту серединой стоп, стопы на ширине таза. Возьмите петлю у плеч ладонями вперёд: лента идёт снаружи от предплечий.',
@@ -132,7 +136,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Пресс и ягодицы напряжены, поясница не прогибается.',
     breathing: 'Выдох — при жиме, вдох — при опускании.',
     commonMistakes: ['Прогиб в пояснице.', 'Жим вперёд, а не вверх.', 'Неполное выпрямление рук.'],
-    tips: [FOOT_ANCHOR, BAND_CHECK],
+    tips: [FOOT_ANCHOR, TWO_BANDS, BAND_CHECK],
   },
   'band-biceps-curl': {
     id: 'band-biceps-curl',
@@ -144,7 +148,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     perSide: false,
     sets: 3,
     restSeconds: 60,
-    loadSteps: LIGHT_BAND_LADDER,
+    loadSteps: BAND_LADDER,
     defaultStepId: 'L1',
     startingPosition:
       'Встаньте на ленту серединой стоп, стопы на ширине таза. Возьмите петлю ладонями вперёд и намотайте на кисти по два оборота, чтобы при опущенных руках лента была натянута.',
@@ -152,7 +156,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Локти прижаты к корпусу и не уходят вперёд.',
     breathing: 'Выдох — при сгибании, вдох — при опускании.',
     commonMistakes: ['Раскачивание корпусом.', 'Локти уходят вперёд.', 'Быстрое опускание.'],
-    tips: ['Каждый раз наматывайте ленту одинаково.', BAND_CHECK],
+    tips: ['Каждый раз наматывайте ленту одинаково.', TWO_BANDS, BAND_CHECK],
   },
   'calf-raise': {
     id: 'calf-raise',
@@ -222,7 +226,10 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       variant('bulgarian', 'Болгарский'),
       variant('band-L1', 'С лентой L1', 'L1'),
       variant('band-L2', 'С лентой L2', 'L2'),
+      variant('band-L1+L2', 'С лентой L1 + L2', 'L1', 'L2'),
       variant('band-L3', 'С лентой L3', 'L3'),
+      variant('band-L1+L3', 'С лентой L1 + L3', 'L1', 'L3'),
+      variant('band-L2+L3', 'С лентой L2 + L3', 'L2', 'L3'),
     ],
     defaultStepId: 'bulgarian',
     startingPosition:
@@ -235,7 +242,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Корпус чуть наклонён вперёд, колено передней ноги по направлению носка.',
     breathing: 'Вдох — при опускании, выдох — при подъёме.',
     commonMistakes: ['Слишком короткая постановка.', 'Колено уходит внутрь.', 'Толчок задней ногой.'],
-    tips: ['Вводите повторы слабой ноги.', 'Стул — устойчивый, без колёсиков.'],
+    tips: ['Вводите повторы слабой ноги.', 'Стул — устойчивый, без колёсиков.', TWO_BANDS],
   },
   'bent-over-band-row': {
     id: 'bent-over-band-row',
@@ -258,7 +265,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Угол наклона не меняется, локти идут назад вдоль корпуса.',
     breathing: 'Выдох — при тяге, вдох — при опускании.',
     commonMistakes: ['Выпрямление корпуса во время тяги.', 'Округление спины.', 'Рывки.'],
-    tips: [FOOT_ANCHOR, 'Каждый раз наматывайте ленту одинаково.', BAND_CHECK],
+    tips: [FOOT_ANCHOR, 'Каждый раз наматывайте ленту одинаково.', TWO_BANDS, BAND_CHECK],
   },
   'sliding-leg-curl': {
     id: 'sliding-leg-curl',
@@ -319,7 +326,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     repRange: { min: 10, max: 15 },
     perSide: false,
     sets: 3,
-    loadSteps: [band('L1'), band('L2'), band('L3'), variant('single-leg-L2', 'Одна нога с L2', 'L2')],
+    loadSteps: [...BAND_LADDER, variant('single-leg-L2', 'Одна нога с L2', 'L2')],
     defaultStepId: 'L2',
     startingPosition:
       'Лёжа на спине, колени согнуты, стопы на полу. Лента проходит поверх таза, концы петли прижаты ладонями к полу у таза. Если внизу лента провисает, намотайте её на кисти по одному обороту.',
@@ -331,7 +338,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     movement: 'Таз поднимают ягодицы, а не поясница.',
     breathing: 'Выдох — при подъёме, вдох — при опускании.',
     commonMistakes: ['Прогиб в пояснице.', 'Колени разваливаются в стороны.', 'Нет паузы вверху.'],
-    tips: ['На одной ноге вторая нога выпрямлена.', BAND_CHECK],
+    tips: ['На одной ноге вторая нога выпрямлена.', TWO_BANDS, BAND_CHECK],
   },
   'band-overhead-triceps-extension': {
     id: 'band-overhead-triceps-extension',
@@ -343,15 +350,20 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     perSide: false,
     sets: 3,
     restSeconds: 60,
-    loadSteps: OVERHEAD_LADDER,
+    loadSteps: [
+      ...BAND_LADDER,
+      variant('one-arm-L3', 'Одна рука с L3', 'L3'),
+      variant('one-arm-L1+L3', 'Одна рука с L1 + L3', 'L1', 'L3'),
+      variant('one-arm-L2+L3', 'Одна рука с L2 + L3', 'L2', 'L3'),
+    ],
     defaultStepId: 'L1',
     startingPosition:
-      'Встаньте одной стопой на конец ленты, другую ногу поставьте вперёд. Возьмите противоположный конец обеими руками за головой, локти направлены вверх.',
+      'Встаньте одной стопой на конец ленты, другую ногу поставьте вперёд. Возьмите противоположный конец обеими руками за головой, локти направлены вверх. В варианте одной рукой держите ленту одной рукой, локоть направлен вверх.',
     steps: ['Выпрямите руки над головой.', 'Медленно согните их за головой.'],
     movement: 'Локти неподвижны и направлены вверх, движутся только предплечья.',
     breathing: 'Выдох — при разгибании, вдох — при сгибании.',
     commonMistakes: ['Локти расходятся в стороны.', 'Прогиб в пояснице.'],
-    tips: [FOOT_ANCHOR, BAND_CHECK],
+    tips: ['Одной рукой: подход на каждую руку, повторы считайте по слабой руке.', FOOT_ANCHOR, TWO_BANDS, BAND_CHECK],
   },
   'dead-bug': {
     id: 'dead-bug',
