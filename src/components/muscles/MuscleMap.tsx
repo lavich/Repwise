@@ -1,4 +1,7 @@
+import { lazy, Suspense, type ReactNode } from 'react'
+import { supportsWebGL } from '@/components/model3d/webgl'
 import type { ExerciseMuscles, MuscleId } from '@/domain/types'
+import { useAppData } from '@/state/store'
 import { loadLevel, type LoadLevel, type MuscleLoad } from '@/domain/stats'
 import { cn } from '@/lib/cn'
 import { formatMuscles } from '@/lib/format'
@@ -50,13 +53,30 @@ function BodyPair({ levelOf, label, className }: { levelOf: (m: MuscleId) => Loa
   )
 }
 
+// A chunk that fails to load falls back to the SVG map.
+const MuscleModel3D = lazy(() =>
+  import('@/components/model3d/MuscleModel3D').catch(() => ({
+    default: ({ fallback }: { fallback: ReactNode }) => <>{fallback}</>,
+  })),
+)
+
+function MuscleFigures({ muscles, fallback }: { muscles: ExerciseMuscles; fallback: ReactNode }) {
+  const theme = useAppData().settings.theme
+  if (!supportsWebGL()) return <>{fallback}</>
+  return (
+    <Suspense fallback={fallback}>
+      <MuscleModel3D muscles={muscles} theme={theme} label="Модель тела спереди и сзади с подсвеченными мышцами" fallback={fallback} />
+    </Suspense>
+  )
+}
+
 export function ExerciseMuscleMap({ muscles, className }: { muscles: ExerciseMuscles; className?: string }) {
   const levelOf = (m: MuscleId): LoadLevel => (muscles.primary.includes(m) ? 3 : muscles.secondary.includes(m) ? 1 : 0)
   const primary = formatMuscles(muscles.primary)
   const secondary = formatMuscles(muscles.secondary)
   return (
     <div className={cn('rounded-2xl bg-surface-2 p-3', className)}>
-      <BodyPair levelOf={levelOf} />
+      <MuscleFigures muscles={muscles} fallback={<BodyPair levelOf={levelOf} />} />
       <dl className="mt-3 space-y-1 text-[15px] leading-snug">
         <div className="flex gap-2">
           <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[3])} aria-hidden="true" />

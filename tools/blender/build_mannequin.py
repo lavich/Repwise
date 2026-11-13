@@ -177,6 +177,36 @@ def build_squat(armature):
     return squat
 
 
+def rotate_about_forward(pose_bone, degrees):
+    forward = Vector((0, 1, 0))
+    axis = pose_bone.bone.matrix_local.to_3x3().inverted() @ forward
+    pose_bone.rotation_mode = 'QUATERNION'
+    pose_bone.rotation_quaternion = Quaternion(axis, math.radians(degrees))
+
+
+# A relaxed standing pose for the muscle map: arms lowered from the T-pose.
+def build_stand(armature):
+    action = bpy.data.actions.new('stand')
+    action.use_fake_user = True
+    armature.animation_data.action = action
+    pose = armature.pose.bones
+    for pose_bone in pose:
+        pose_bone.matrix_basis = Matrix.Identity(4)
+    for side, sign in (('l', 1), ('r', -1)):
+        rotate_about_forward(pose[f'upperarm_{side}'], 72 * sign)
+        rotate_about_forward(pose[f'lowerarm_{side}'], 8 * sign)
+        for finger in ('index', 'middle', 'ring', 'pinky'):
+            for joint in ('01', '02', '03'):
+                rotate_about_forward(pose[f'{finger}_{joint}_{side}'], 15 * sign)
+    for frame in (0, 1):
+        for pose_bone in pose:
+            pose_bone.keyframe_insert('rotation_quaternion', frame=frame)
+    armature.animation_data.action = None
+    for pose_bone in pose:
+        pose_bone.matrix_basis = Matrix.Identity(4)
+    return action
+
+
 # The mannequin faces -Y and its left side is +X; groups follow the dominant
 # bone of a vertex and which way its surface faces in the rest pose.
 def classify(bone, normal, position, forward):
@@ -243,7 +273,7 @@ def mark_muscles(armature, mesh):
     print('MUSCLE COUNTS', counts)
 
 
-def render_previews(armature, mesh, squat, pushup):
+def render_previews(armature, mesh, squat, pushup, stand):
     PREVIEW.mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_WORKBENCH'
@@ -277,6 +307,11 @@ def render_previews(armature, mesh, squat, pushup):
         scene.frame_set(frame)
         shoot(f'pushup-side-{frame}', (3.5, 0, 0.6), (90, 0, 90))
 
+    armature.animation_data.action = stand
+    if stand.slots:
+        armature.animation_data.action_slot = stand.slots[0]
+    scene.frame_set(0)
+    shoot('stand-front', (0, -3.5, 0.9), (90, 0, 0))
     armature.animation_data.action = None
     for pose_bone in armature.pose.bones:
         pose_bone.matrix_basis = Matrix.Identity(4)
@@ -332,8 +367,9 @@ armature, mesh = load_model()
 pushup = load_pushup(armature)
 armature.animation_data_create()
 squat = build_squat(armature)
+stand = build_stand(armature)
 mark_muscles(armature, mesh)
 if PREVIEW:
-    render_previews(armature, mesh, squat, pushup)
-export(armature, mesh, [pushup, squat])
+    render_previews(armature, mesh, squat, pushup, stand)
+export(armature, mesh, [pushup, squat, stand])
 print('EXPORTED', OUTPUT, OUTPUT.stat().st_size)

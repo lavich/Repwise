@@ -45,6 +45,10 @@ function clipDuration(name: string): number {
 }
 
 describe('mannequin model', () => {
+  it('contains the standing pose for the muscle map', () => {
+    expect(clipDuration('stand')).toBeGreaterThan(0)
+  })
+
   it('contains every clip used by the app, long enough for its transition', () => {
     for (const model of Object.values(MODELS)) {
       expect(clipDuration(model.clip)).toBeGreaterThanOrEqual(model.duration - 1e-3)

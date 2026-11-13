@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { MODELS } from '@/components/model3d/models'
+import { supportsWebGL } from '@/components/model3d/webgl'
 import { EXERCISES } from '@/domain/exercises'
 import { useAppData } from '@/state/store'
 import type { ExerciseId } from '@/domain/types'
@@ -129,17 +130,6 @@ const Mannequin3D = lazy(() =>
     default: ({ fallback }: { fallback: ReactNode }) => <>{fallback}</>,
   })),
 )
-
-let webglSupport: boolean | null = null
-
-function supportsWebGL(): boolean {
-  if (webglSupport === null) {
-    const context = document.createElement('canvas').getContext('webgl2')
-    webglSupport = context !== null
-    context?.getExtension('WEBGL_lose_context')?.loseContext()
-  }
-  return webglSupport
-}
 
 export function ExerciseIllustration({
   exerciseId,

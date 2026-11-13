@@ -1,58 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as THREE from 'three'
-import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ExerciseMuscles, ThemePreference } from '@/domain/types'
 import { PlaybackBar } from '@/components/illustrations/PlaybackBar'
 import { useAnimationLoop, useReducedMotion } from '@/components/illustrations/useAnimationLoop'
 import { cn } from '@/lib/cn'
+import { addLights, applyThemeColors, cloneMannequin, createMaterial, createRenderer, fitCamera, loadMannequin, themeColor, type MuscleUniforms } from './mannequin'
 import { clipTime, muscleLevels, type Model3d } from './models'
-
-const MODEL_URL = `${import.meta.env.BASE_URL}models/mannequin.glb`
-let gltfPromise: Promise<GLTF> | null = null
-
-function loadMannequin(): Promise<GLTF> {
-  gltfPromise ??= new GLTFLoader().loadAsync(MODEL_URL).catch((error: unknown) => {
-    gltfPromise = null
-    throw error
-  })
-  return gltfPromise
-}
-
-function themeColor(name: string): THREE.Color {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return new THREE.Color(value || '#888888')
-}
-
-function createMaterial(levels: number[]) {
-  const uniforms = {
-    uLevels: { value: levels },
-    uBody: { value: themeColor('--body-3d') },
-    uSecondary: { value: themeColor('--muscle-1') },
-    uPrimary: { value: themeColor('--muscle-3') },
-  }
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0 })
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms)
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        '#include <common>',
-        '#include <common>\nattribute float _muscle;\nuniform float uLevels[16];\nvarying float vLevel;',
-      )
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLevel = uLevels[int(_muscle + 0.5)];')
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        '#include <common>',
-        '#include <common>\nuniform vec3 uBody;\nuniform vec3 uSecondary;\nuniform vec3 uPrimary;\nvarying float vLevel;',
-      )
-      .replace(
-        'vec4 diffuseColor = vec4( diffuse, opacity );',
-        'vec3 tint = vLevel > 1.5 ? uPrimary : vLevel > 0.5 ? uSecondary : uBody;\nvec4 diffuseColor = vec4( tint, opacity );',
-      )
-  }
-  material.customProgramCacheKey = () => 'mannequin-muscles'
-  return { material, uniforms }
-}
 
 interface Stage {
   renderer: THREE.WebGLRenderer
@@ -62,26 +16,17 @@ interface Stage {
   mixer: THREE.AnimationMixer
   action: THREE.AnimationAction
   bandLines: { line: THREE.Line; from: THREE.Object3D; to: THREE.Object3D }[]
-  uniforms: ReturnType<typeof createMaterial>['uniforms']
+  uniforms: MuscleUniforms
   dispose: () => void
 }
 
 // Same proportions as the flat illustration, so swapping them does not shift the layout.
 const ASPECT = 160 / 136
 
-function frameCamera(camera: THREE.OrthographicCamera, box: THREE.Box3, aspect: number) {
-  const size = box.getSize(new THREE.Vector3())
-  const radius = Math.max(size.x, size.y, size.z) * 0.52
-  const halfHeight = Math.max(radius, radius / aspect)
-  camera.left = -halfHeight * aspect
-  camera.right = halfHeight * aspect
-  camera.top = halfHeight
-  camera.bottom = -halfHeight
-  camera.updateProjectionMatrix()
-}
+const TURN_PER_SECOND = THREE.MathUtils.degToRad(30)
 
 function createStage(canvas: HTMLCanvasElement, gltf: GLTF, model: Model3d, levels: number[]): Stage {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+  const renderer = createRenderer(canvas)
   try {
     return buildStage(renderer, gltf, model, levels)
   } catch (error) {
@@ -91,22 +36,10 @@ function createStage(canvas: HTMLCanvasElement, gltf: GLTF, model: Model3d, leve
 }
 
 function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, levels: number[]): Stage {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   const scene = new THREE.Scene()
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6))
-  const light = new THREE.DirectionalLight(0xffffff, 1.8)
-  light.position.set(2, 4, 3)
-  scene.add(light)
-
-  const root = cloneSkinned(gltf.scene)
+  addLights(scene)
   const { material, uniforms } = createMaterial(levels)
-  root.traverse((node) => {
-    if ((node as THREE.SkinnedMesh).isSkinnedMesh) {
-      const mesh = node as THREE.SkinnedMesh
-      mesh.material = material
-      mesh.frustumCulled = false
-    }
-  })
+  const root = cloneMannequin(gltf, material)
   const pivot = new THREE.Group()
   pivot.add(root)
   scene.add(pivot)
@@ -144,7 +77,9 @@ function buildStage(renderer: THREE.WebGLRenderer, gltf: GLTF, model: Model3d, l
   camera.lookAt(0, 0, 0)
   camera.near = 0.1
   camera.far = 20
-  frameCamera(camera, box, ASPECT)
+  // The model turns around its vertical axis, so the frame fits its
+  // horizontal diagonal rather than its current width.
+  fitCamera(camera, Math.hypot(size.x, size.z) * 0.52, size.y * 0.6 + 0.05, ASPECT)
 
   const bandLines: Stage['bandLines'] = []
   const bandMaterial = new THREE.LineBasicMaterial({ color: themeColor('--band') })
@@ -236,8 +171,16 @@ export default function Mannequin3D({
     }
   }, [])
 
+  const lastFrame = useRef<number | null>(null)
+  const drag = useRef<{ x: number; rotation: number } | null>(null)
   const { playState, setPlayState } = useAnimationLoop(container, (state) => {
     if (reducedMotion || !stage.current) return
+    const now = performance.now()
+    // A long gap means the loop was paused or off screen: the turn resumes
+    // where it stopped instead of jumping.
+    const step = Math.min(lastFrame.current === null ? 0 : now - lastFrame.current, 50)
+    lastFrame.current = now
+    if (!drag.current) stage.current.pivot.rotation.y += (step / 1000) * TURN_PER_SECOND
     position.current = state.t
     renderAt(stage.current, model, state.t)
     if (caption.current) caption.current.textContent = state.t >= 0.5 ? endLabel : startLabel
@@ -278,9 +221,7 @@ export default function Mannequin3D({
     const frame = requestAnimationFrame(() => {
       const current = stage.current
       if (!current) return
-      current.uniforms.uBody.value = themeColor('--body-3d')
-      current.uniforms.uSecondary.value = themeColor('--muscle-1')
-      current.uniforms.uPrimary.value = themeColor('--muscle-3')
+      applyThemeColors(current.uniforms)
       renderAt(current, model, position.current)
     })
     return () => cancelAnimationFrame(frame)
@@ -292,8 +233,6 @@ export default function Mannequin3D({
     renderAt(stage.current, model, 0)
     if (caption.current) caption.current.textContent = startLabel
   }, [reducedMotion, gltf, model, startLabel])
-
-  const drag = useRef<{ x: number; rotation: number } | null>(null)
 
   if (failed || !gltf || !THREE.AnimationClip.findByName(gltf.animations, model.clip)) return <>{fallback}</>
 
