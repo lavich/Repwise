@@ -35,7 +35,7 @@ export function WorkoutScreen({ active, onFinished }: { active: ActiveWorkout; o
   }, [exerciseIndex, phase])
 
   return (
-    <div className="fixed inset-0 flex flex-col">
+    <div className="app-screen flex flex-col">
       <header className="pt-safe shrink-0 border-b border-border bg-bg px-4 pb-3">
         <div className="mx-auto flex h-12 max-w-lg items-center justify-between gap-2">
           {!inFeedback ? (
