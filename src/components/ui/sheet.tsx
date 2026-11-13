@@ -41,7 +41,7 @@ export function Sheet({
 
   if (!open) return null
   return createPortal(
-    <div className="app-screen z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
