@@ -18,6 +18,9 @@
         var theme = JSON.parse(localStorage.getItem('repwise:data') || '{}').settings.theme
         if (theme === 'light') document.documentElement.dataset.theme = 'light'
       } catch (e) {}
+      // Apps added with the apple-mobile-web-app-capable meta tag do not always
+      // match display-mode: standalone, but navigator.standalone is still true.
+      if (navigator.standalone) document.documentElement.dataset.iosStandalone = ''
     </script>
   </head>
   <body>
