@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { cn } from '@/lib/cn'
 import { Button } from './button'
 
 export function Sheet({
@@ -17,6 +18,16 @@ export function Sheet({
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
+  const [wasOpen, setWasOpen] = useState(open)
+  const [closing, setClosing] = useState(false)
+  // Callers clear the content together with `open`, so the closing sheet shows what it showed while open.
+  const shown = useRef({ title, children })
+  if (open) shown.current = { title, children }
+
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    setClosing(!open)
+  }
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -39,27 +50,35 @@ export function Sheet({
     }
   }, [open])
 
-  if (!open) return null
+  if (!open && !closing) return null
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+    <div className={cn('fixed inset-0 z-50 flex items-end justify-center', closing && 'pointer-events-none')}>
+      <div
+        className={cn('absolute inset-0 bg-black/60', closing ? 'animate-fade-out' : 'animate-fade-in')}
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pb-safe relative flex outline-none max-h-[92dvh] w-full max-w-lg flex-col rounded-t-[28px] border border-border bg-surface"
+        onAnimationEnd={(event) => event.target === event.currentTarget && closing && setClosing(false)}
+        className={cn(
+          'pb-safe relative flex outline-none max-h-[92dvh] w-full max-w-lg flex-col rounded-t-[28px] border border-border bg-surface',
+          closing ? 'animate-sheet-out' : 'animate-sheet-in',
+        )}
       >
         <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2">
           <h2 id={titleId} className="text-xl font-bold">
-            {title}
+            {shown.current.title}
           </h2>
           <Button variant="secondary" size="icon" className="size-11 rounded-full" onClick={onClose} aria-label="Закрыть">
             <X className="size-5" />
           </Button>
         </div>
-        <div className="overflow-y-auto overscroll-contain px-5 pb-4">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-5 pb-4">{shown.current.children}</div>
       </div>
     </div>,
     document.body,
