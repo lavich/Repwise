@@ -347,6 +347,7 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
       band('L1'),
       band('L2'),
       band('L3'),
+      band('L2', 'L3'),
       variant('one-arm-L2', 'Одна рука с L2', 'L2'),
       variant('one-arm-L3', 'Одна рука с L3', 'L3'),
     ],
