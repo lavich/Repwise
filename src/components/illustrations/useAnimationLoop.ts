@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
-import type { Tempo } from './poses'
-import { cycleAt, DEFAULT_TEMPO, type CycleState } from './rig'
+import { cycleAt, DEFAULT_TEMPO, type CycleState, type Tempo } from './cycle'
 
 export type PlayState = 'playing' | 'paused' | 'finished'
 

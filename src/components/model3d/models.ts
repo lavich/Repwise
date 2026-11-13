@@ -11,7 +11,7 @@ export type BandSegment = readonly [from: string, to: string]
 export interface Model3d {
   clip: string
   // Seconds from the start position to the end position inside the clip;
-  // the cycle with holds and the return is built by cycleAt, as for 2D.
+  // the cycle with holds and the return is built by cycleAt.
   duration: number
   camera: ModelCamera
   bands?: BandSegment[]
@@ -24,6 +24,17 @@ const FEET_TO_HANDS: BandSegment[] = [
 ]
 const STANDING: ModelCamera = { azimuth: 30, elevation: 8 }
 const LYING: ModelCamera = { azimuth: 70, elevation: 28 }
+
+export const PHASE_LABELS: Partial<Record<ExerciseId, { start?: string; end?: string }>> = {
+  'seated-band-row': { end: 'Кисти к животу' },
+  'band-romanian-deadlift': { end: 'Наклон с ровной спиной' },
+  'calf-raise': { start: 'Пятка ниже опоры' },
+  'reverse-crunch': { end: 'Таз от пола' },
+  'bent-over-band-row': { end: 'Кисти к поясу' },
+  'sliding-leg-curl': { start: 'Ноги выпрямлены', end: 'Пятки к себе' },
+  'band-overhead-triceps-extension': { start: 'Кисти за головой', end: 'Руки прямые' },
+  'dead-bug': { end: 'Рука и нога вниз' },
+}
 
 export const MODELS: Record<ExerciseId, Model3d> = {
   'band-squat': { clip: 'band-squat', duration: 1, camera: STANDING, bands: FEET_TO_HANDS },

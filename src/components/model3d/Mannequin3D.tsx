@@ -21,7 +21,7 @@ interface Stage {
   dispose: () => void
 }
 
-// Same proportions as the flat illustration, so swapping them does not shift the layout.
+// Same proportions as the loading placeholder, so swapping them does not shift the layout.
 const ASPECT = 160 / 136
 
 const TURN_PER_SECOND = THREE.MathUtils.degToRad(30)
