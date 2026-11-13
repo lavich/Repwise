@@ -22,6 +22,30 @@ export type ExerciseId = (typeof EXERCISE_IDS)[number]
 
 export type WorkoutId = 'A' | 'B'
 
+export const MUSCLE_IDS = [
+  'chest',
+  'front-delts',
+  'side-delts',
+  'biceps',
+  'triceps',
+  'abs',
+  'obliques',
+  'lats',
+  'upper-back',
+  'lower-back',
+  'glutes',
+  'quads',
+  'hamstrings',
+  'adductors',
+  'calves',
+] as const
+export type MuscleId = (typeof MUSCLE_IDS)[number]
+
+export interface ExerciseMuscles {
+  primary: MuscleId[]
+  secondary: MuscleId[]
+}
+
 export interface LoadStep {
   id: string
   label: string
@@ -37,7 +61,7 @@ export interface Exercise {
   id: ExerciseId
   nameRu: string
   nameEn: string
-  muscles: string
+  muscles: ExerciseMuscles
   summary: string
   repRange: RepRange
   perSide: boolean

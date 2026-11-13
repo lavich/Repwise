@@ -10,10 +10,12 @@ import { Sheet } from '@/components/ui/sheet'
 import { EXERCISES, stepLabel } from '@/domain/exercises'
 import { WORKOUTS } from '@/domain/program'
 import { sessionVolume } from '@/domain/session'
-import { exerciseHistory, finishedSessions, rpeSeries, sessionDays, volumeSeries } from '@/domain/stats'
+import { exerciseHistory, finishedSessions, loadLevel, rankedMuscleLoad, rpeSeries, sessionDays, volumeSeries, weeklyMuscleSets } from '@/domain/stats'
 import { EXERCISE_IDS, type ExerciseId, type WorkoutSession } from '@/domain/types'
 import { cn } from '@/lib/cn'
-import { formatDay, formatDuration, formatRepRange, formatShortDay, formatTime, formatWeekday, SKIP_REASON_LABELS } from '@/lib/format'
+import { formatDay, formatDuration, formatRepRange, formatShortDay, formatTime, formatWeekday, SKIP_REASON_LABELS, formatSetCount, MUSCLE_LABELS } from '@/lib/format'
+import { LoadMuscleMap } from '@/components/muscles/MuscleMap'
+import { useNow } from '@/lib/hooks'
 import { useAppData } from '@/state/store'
 
 type View = 'overview' | 'history'
@@ -37,6 +39,41 @@ export function ProgressScreen({ view, onViewChange }: { view: View; onViewChang
   )
 }
 
+function WeeklyMuscles() {
+  const { sessions } = useAppData()
+  const now = useNow(true, 60_000)
+  const load = weeklyMuscleSets(sessions, new Date(now))
+  const ranked = rankedMuscleLoad(load)
+  const empty = ranked.every((row) => row.sets === 0)
+
+  return (
+    <section>
+      <SectionTitle>Мышцы за неделю</SectionTitle>
+      <Card className="space-y-4">
+        <LoadMuscleMap load={load} />
+        <p className="text-[13px] text-muted">
+          {empty && 'На этой неделе тренировок ещё не было — после первой здесь появится нагрузка по мышцам. '}
+          Подход засчитывается целиком основным мышцам и наполовину — вспомогательным. Ориентир для роста — 10–20
+          подходов в неделю на мышцу.
+        </p>
+        <ul className="divide-y divide-border">
+          {ranked.map(({ id, sets }) => (
+            <li key={id} className="flex items-center justify-between gap-3 py-2 text-[15px]">
+              <span className="flex items-center gap-2">
+                <span className={cn('size-2.5 shrink-0 rounded-full', LOAD_DOT[loadLevel(sets)])} aria-hidden="true" />
+                <span className="first-letter:uppercase">{MUSCLE_LABELS[id]}</span>
+              </span>
+              <span className="tabular font-semibold">{formatSetCount(sets)}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
+  )
+}
+
+const LOAD_DOT = { 0: 'bg-muscle-0', 1: 'bg-muscle-1', 2: 'bg-muscle-2', 3: 'bg-muscle-3' } as const
+
 function Overview() {
   const { sessions } = useAppData()
   const [exerciseId, setExerciseId] = useState<ExerciseId>('band-squat')
@@ -51,6 +88,8 @@ function Overview() {
           <MonthCalendar days={sessionDays(sessions)} />
         </Card>
       </section>
+
+      <WeeklyMuscles />
 
       <section>
         <SectionTitle>Нагрузка (RPE)</SectionTitle>
