@@ -49,7 +49,9 @@ export function SetView({ active, exercise }: { active: ActiveWorkout; exercise:
           </Button>
         </div>
 
-        <div className="mt-6 flex justify-center gap-2" aria-hidden="true">
+        <ExerciseIllustration exerciseId={info.id} title={info.nameRu} size="compact" className="mt-3" />
+
+        <div className="mt-3 flex justify-center gap-2" aria-hidden="true">
           {Array.from({ length: exercise.targetSets }, (_, i) => (
             <span
               key={i}
@@ -96,7 +98,6 @@ export function SetView({ active, exercise }: { active: ActiveWorkout; exercise:
 
       <Sheet open={techniqueOpen} onClose={() => setTechniqueOpen(false)} title={info.nameRu}>
         <div className="space-y-5">
-          <ExerciseIllustration exerciseId={info.id} title={info.nameRu} />
           <ExerciseSteps exercise={info} />
           <p className="text-[15px] text-muted">{info.breathing}</p>
         </div>
