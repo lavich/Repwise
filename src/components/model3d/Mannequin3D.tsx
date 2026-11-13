@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ExerciseMuscles, ThemePreference } from '@/domain/types'
 import { PlaybackBar } from '@/components/illustrations/PlaybackBar'
+import { FIGURE_WIDTH, type FigureSize } from '@/components/illustrations/figureSize'
 import { useAnimationLoop, useReducedMotion } from '@/components/illustrations/useAnimationLoop'
 import { cn } from '@/lib/cn'
 import { addLights, applyThemeColors, cloneMannequin, createMaterial, createRenderer, fitCamera, loadMannequin, themeColor, type MuscleUniforms } from './mannequin'
@@ -139,6 +140,8 @@ export default function Mannequin3D({
   startLabel,
   endLabel,
   fallback,
+  failedFallback,
+  size,
   className,
 }: {
   model: Model3d
@@ -148,6 +151,8 @@ export default function Mannequin3D({
   startLabel: string
   endLabel: string
   fallback: ReactNode
+  failedFallback: ReactNode
+  size: FigureSize
   className?: string
 }) {
   const [gltf, setGltf] = useState<GLTF | null>(null)
@@ -233,7 +238,8 @@ export default function Mannequin3D({
     if (caption.current) caption.current.textContent = startLabel
   }, [reducedMotion, gltf, model, startLabel])
 
-  if (failed || !gltf || !THREE.AnimationClip.findByName(gltf.animations, model.clip)) return <>{fallback}</>
+  if (failed || (gltf && !THREE.AnimationClip.findByName(gltf.animations, model.clip))) return <>{failedFallback}</>
+  if (!gltf) return <>{fallback}</>
 
   return (
     <div ref={container} className={cn('rounded-2xl bg-surface-2 p-3', className)}>
@@ -241,7 +247,7 @@ export default function Mannequin3D({
         ref={canvas}
         role="img"
         aria-label={`Трёхмерная модель: ${title}`}
-        className="mx-auto block aspect-[160/136] w-full max-w-72 touch-pan-y"
+        className={cn('mx-auto block aspect-[160/136] w-full touch-pan-y', FIGURE_WIDTH[size])}
         onPointerDown={(event) => {
           if (!stage.current || !event.isPrimary) return
           event.currentTarget.setPointerCapture(event.pointerId)

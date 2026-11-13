@@ -6,6 +6,7 @@ import { useAppData } from '@/state/store'
 import type { ExerciseId } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { FRAMES, type LimbKind, type Point, type Prop } from './poses'
+import { FIGURE_WIDTH, type FigureSize } from './figureSize'
 import { PlaybackBar } from './PlaybackBar'
 import { buildRig, interpolatePose, type ResolvedPose } from './rig'
 import { useAnimationLoop, useReducedMotion } from './useAnimationLoop'
@@ -120,30 +121,41 @@ function Floor() {
   return <line x1={8} x2={152} y1={FLOOR_Y} y2={FLOOR_Y} strokeWidth={2} className="stroke-border-strong" />
 }
 
-
-
-
 // A chunk that fails to load (offline before caching, or removed by a deploy)
 // falls back to the flat animation instead of breaking the screen.
 const Mannequin3D = lazy(() =>
   import('@/components/model3d/Mannequin3D').catch(() => ({
-    default: ({ fallback }: { fallback: ReactNode }) => <>{fallback}</>,
+    default: ({ failedFallback }: { failedFallback: ReactNode }) => <>{failedFallback}</>,
   })),
 )
 
+// `whenUnavailable` is added under the flat animation when the 3D model cannot
+// be shown at all, e.g. the muscle map that the 3D model would otherwise cover.
 export function ExerciseIllustration({
   exerciseId,
   title,
+  size = 'regular',
+  whenUnavailable,
   className,
 }: {
   exerciseId: ExerciseId
   title: string
+  size?: FigureSize
+  whenUnavailable?: ReactNode
   className?: string
 }) {
   const theme = useAppData().settings.theme
   const model = MODELS[exerciseId]
-  const flat = <FlatIllustration key={exerciseId} exerciseId={exerciseId} title={title} className={className} />
-  if (!model || !supportsWebGL()) return flat
+  const flat = <FlatIllustration key={exerciseId} exerciseId={exerciseId} title={title} size={size} className={className} />
+  const failed = whenUnavailable ? (
+    <div className="space-y-3">
+      {flat}
+      {whenUnavailable}
+    </div>
+  ) : (
+    flat
+  )
+  if (!model || !supportsWebGL()) return failed
   const frames = FRAMES[exerciseId]
   return (
     <Suspense fallback={flat}>
@@ -156,6 +168,8 @@ export function ExerciseIllustration({
         startLabel={frames.startLabel ?? 'Начало'}
         endLabel={frames.endLabel ?? 'Конец'}
         fallback={flat}
+        failedFallback={failed}
+        size={size}
         className={className}
       />
     </Suspense>
@@ -165,10 +179,12 @@ export function ExerciseIllustration({
 function FlatIllustration({
   exerciseId,
   title,
+  size,
   className,
 }: {
   exerciseId: ExerciseId
   title: string
+  size: FigureSize
   className?: string
 }) {
   const frames = FRAMES[exerciseId]
@@ -181,7 +197,7 @@ function FlatIllustration({
 
   if (reducedMotion) {
     return (
-      <div className={cn('flex gap-2 rounded-2xl bg-surface-2 p-3', className)}>
+      <div className={cn('mx-auto flex gap-2 rounded-2xl bg-surface-2 p-3', size === 'compact' && 'max-w-80', className)}>
         {[
           { pose: startPose, label: startLabel },
           { pose: endPose, label: endLabel },
@@ -207,6 +223,7 @@ function FlatIllustration({
       title={title}
       startLabel={startLabel}
       endLabel={endLabel}
+      size={size}
       className={className}
     />
   )
@@ -219,6 +236,7 @@ function AnimatedFigure({
   title,
   startLabel,
   endLabel,
+  size,
   className,
 }: {
   rig: ReturnType<typeof buildRig>
@@ -227,6 +245,7 @@ function AnimatedFigure({
   title: string
   startLabel: string
   endLabel: string
+  size: FigureSize
   className?: string
 }) {
   const container = useRef<HTMLDivElement>(null)
@@ -247,7 +266,7 @@ function AnimatedFigure({
 
   return (
     <div ref={container} className={cn('rounded-2xl bg-surface-2 p-3', className)}>
-      <svg viewBox={VIEW_BOX} className="mx-auto h-auto w-full max-w-72" role="img" aria-label={`Анимация: ${title}`}>
+      <svg viewBox={VIEW_BOX} className={cn('mx-auto h-auto w-full', FIGURE_WIDTH[size])} role="img" aria-label={`Анимация: ${title}`}>
         <Floor />
         <Figure pose={startPose} props={frames.start.props} register={register} />
       </svg>

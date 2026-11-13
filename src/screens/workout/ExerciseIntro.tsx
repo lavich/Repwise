@@ -1,6 +1,6 @@
 import { ExerciseCautions, ExerciseSteps } from '@/components/ExerciseDetails'
 import { ExerciseIllustration } from '@/components/illustrations/ExerciseIllustration'
-import { ExerciseMuscleMap } from '@/components/muscles/MuscleMap'
+import { MuscleList, MuscleSchematic } from '@/components/muscles/MuscleMap'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EXERCISES, stepLabel } from '@/domain/exercises'
@@ -31,8 +31,10 @@ export function ExerciseIntro({ exercise }: { exercise: SessionExercise }) {
           </Badge>
         </div>
 
-        <ExerciseIllustration exerciseId={info.id} title={info.nameRu} />
-        <ExerciseMuscleMap muscles={info.muscles} />
+        <div className="space-y-3">
+          <ExerciseIllustration exerciseId={info.id} title={info.nameRu} whenUnavailable={<MuscleSchematic muscles={info.muscles} />} />
+          <MuscleList muscles={info.muscles} className="px-1" />
+        </div>
 
         <section className="space-y-2">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">Исходное положение</h2>

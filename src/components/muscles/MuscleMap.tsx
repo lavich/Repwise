@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { supportsWebGL } from '@/components/model3d/webgl'
-import { muscleLevels, type MuscleLevel } from '@/components/model3d/models'
+import type { MuscleLevel } from '@/components/model3d/models'
 import { MUSCLE_IDS, type ExerciseMuscles, type MuscleId } from '@/domain/types'
 import { useAppData } from '@/state/store'
 import { loadLevel, type LoadLevel, type MuscleLoad } from '@/domain/stats'
@@ -71,32 +71,33 @@ function MuscleFigures({ levels, label, fallback }: { levels: MuscleLevel[]; lab
   )
 }
 
-export function ExerciseMuscleMap({ muscles, className }: { muscles: ExerciseMuscles; className?: string }) {
-  const levelOf = (m: MuscleId): LoadLevel => (muscles.primary.includes(m) ? 3 : muscles.secondary.includes(m) ? 1 : 0)
-  const exerciseLevels = muscleLevels(muscles)
+export function MuscleList({ muscles, className }: { muscles: ExerciseMuscles; className?: string }) {
   const primary = formatMuscles(muscles.primary)
   const secondary = formatMuscles(muscles.secondary)
   return (
-    <div className={cn('rounded-2xl bg-surface-2 p-3', className)}>
-      <MuscleFigures
-        levels={exerciseLevels}
-        label="Модель тела спереди и сзади с подсвеченными мышцами"
-        fallback={<BodyPair levelOf={levelOf} />}
-      />
-      <dl className="mt-3 space-y-1 text-[15px] leading-snug">
+    <dl className={cn('space-y-1 text-[15px] leading-snug', className)}>
+      <div className="flex gap-2">
+        <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[3])} aria-hidden="true" />
+        <dt className="text-muted">Основные:</dt>
+        <dd className="font-medium">{primary}</dd>
+      </div>
+      {secondary && (
         <div className="flex gap-2">
-          <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[3])} aria-hidden="true" />
-          <dt className="text-muted">Основные:</dt>
-          <dd className="font-medium">{primary}</dd>
+          <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[1])} aria-hidden="true" />
+          <dt className="text-muted">Вспомогательные:</dt>
+          <dd className="font-medium">{secondary}</dd>
         </div>
-        {secondary && (
-          <div className="flex gap-2">
-            <span className={cn('mt-1.5 size-3 shrink-0 rounded-full', LEVEL_BG[1])} aria-hidden="true" />
-            <dt className="text-muted">Вспомогательные:</dt>
-            <dd className="font-medium">{secondary}</dd>
-          </div>
-        )}
-      </dl>
+      )}
+    </dl>
+  )
+}
+
+// Shown only when the 3D model, which lights up the muscles itself, is unavailable.
+export function MuscleSchematic({ muscles }: { muscles: ExerciseMuscles }) {
+  const levelOf = (m: MuscleId): LoadLevel => (muscles.primary.includes(m) ? 3 : muscles.secondary.includes(m) ? 1 : 0)
+  return (
+    <div className="rounded-2xl bg-surface-2 p-3">
+      <BodyPair levelOf={levelOf} />
     </div>
   )
 }

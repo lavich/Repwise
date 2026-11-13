@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { ExerciseDetails } from '@/components/ExerciseDetails'
 import { ExerciseIllustration } from '@/components/illustrations/ExerciseIllustration'
-import { ExerciseMuscleMap } from '@/components/muscles/MuscleMap'
+import { MuscleList, MuscleSchematic } from '@/components/muscles/MuscleMap'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, SectionTitle } from '@/components/ui/card'
@@ -66,8 +66,14 @@ export function LibraryScreen() {
                 {formatTarget(exercise.sets, exercise.repRange.min, exercise.repRange.max, exercise.perSide)}
               </p>
             </div>
-            <ExerciseIllustration exerciseId={exercise.id} title={exercise.nameRu} />
-            <ExerciseMuscleMap muscles={exercise.muscles} />
+            <div className="space-y-3">
+              <ExerciseIllustration
+                exerciseId={exercise.id}
+                title={exercise.nameRu}
+                whenUnavailable={<MuscleSchematic muscles={exercise.muscles} />}
+              />
+              <MuscleList muscles={exercise.muscles} className="px-1" />
+            </div>
             <ProgressionControls exerciseId={exercise.id} />
             <ExerciseDetails exercise={exercise} />
           </div>
