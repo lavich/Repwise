@@ -36,8 +36,10 @@ function createMapStage(canvas: HTMLCanvasElement, gltf: GLTF, levels: number[])
   const figures: THREE.Object3D[] = []
   const box = new THREE.Box3()
   const roots: THREE.Object3D[] = []
+  const propMaterials: THREE.Material[] = []
   for (const [index, facing] of [0, Math.PI].entries()) {
-    const { root } = cloneMannequin(gltf, material)
+    const { root, propMaterial } = cloneMannequin(gltf, material)
+    propMaterials.push(propMaterial)
     if (clip) {
       const mixer = new THREE.AnimationMixer(root)
       mixer.clipAction(clip).play()
@@ -70,6 +72,7 @@ function createMapStage(canvas: HTMLCanvasElement, gltf: GLTF, levels: number[])
     dispose: () => {
       roots.forEach((root) => root.traverse((node) => (node as THREE.Mesh).geometry?.dispose()))
       material.dispose()
+      propMaterials.forEach((item) => item.dispose())
       renderer.dispose()
       renderer.forceContextLoss()
     },
