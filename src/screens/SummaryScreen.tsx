@@ -69,9 +69,11 @@ export function SummaryScreen({ sessionId, onClose }: { sessionId: string; onClo
               <Card className="divide-y divide-border p-0">
                 {informational.map((s) => (
                   <div key={s.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold">{EXERCISES[s.exerciseId].nameRu}</p>
-                      <Badge tone={s.kind === 'pain-hold' && painful ? 'danger' : 'neutral'}>{DECISION_LABELS[s.kind]}</Badge>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 pt-0.5 font-semibold">{EXERCISES[s.exerciseId].nameRu}</p>
+                      <Badge tone={s.kind === 'pain-hold' && painful ? 'danger' : 'neutral'} className="shrink-0">
+                        {DECISION_LABELS[s.kind]}
+                      </Badge>
                     </div>
                     <p className="mt-1 text-[15px] leading-snug text-muted">{s.reason}</p>
                   </div>
