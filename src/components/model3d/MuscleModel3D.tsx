@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ThemePreference } from '@/domain/types'
+import { useReducedMotion } from '@/components/illustrations/useAnimationLoop'
 import {
   addLights,
   applyThemeColors,
@@ -15,14 +16,14 @@ import {
 import type { MuscleLevel } from './models'
 
 const STAND_CLIP = 'stand'
-const ASPECT = 1
-const SPACING = 0.95
+const ASPECT = 3 / 4
+const TURN_PER_SECOND = THREE.MathUtils.degToRad(30)
 
 interface MapStage {
   renderer: THREE.WebGLRenderer
   scene: THREE.Scene
   camera: THREE.OrthographicCamera
-  figures: THREE.Object3D[]
+  turntable: THREE.Group
   uniforms: MuscleUniforms
   dispose: () => void
 }
@@ -33,46 +34,35 @@ function createMapStage(canvas: HTMLCanvasElement, gltf: GLTF, levels: number[])
   addLights(scene)
   const { material, uniforms } = createMaterial(levels)
   const clip = THREE.AnimationClip.findByName(gltf.animations, STAND_CLIP)
-  const figures: THREE.Object3D[] = []
-  const box = new THREE.Box3()
-  const roots: THREE.Object3D[] = []
-  const propMaterials: THREE.Material[] = []
-  for (const [index, facing] of [0, Math.PI].entries()) {
-    const { root, propMaterial } = cloneMannequin(gltf, material)
-    propMaterials.push(propMaterial)
-    if (clip) {
-      const mixer = new THREE.AnimationMixer(root)
-      mixer.clipAction(clip).play()
-      mixer.update(0)
-    }
-    root.updateMatrixWorld(true)
-    box.setFromObject(root, true)
-    root.position.sub(box.getCenter(new THREE.Vector3()))
-    const turntable = new THREE.Group()
-    turntable.add(root)
-    turntable.rotation.y = facing
-    turntable.position.x = (index === 0 ? -1 : 1) * SPACING * 0.5
-    scene.add(turntable)
-    figures.push(turntable)
-    roots.push(root)
+  const { root, propMaterial } = cloneMannequin(gltf, material)
+  if (clip) {
+    const mixer = new THREE.AnimationMixer(root)
+    mixer.clipAction(clip).play()
+    mixer.update(0)
   }
+  root.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(root, true)
+  root.position.sub(box.getCenter(new THREE.Vector3()))
+  const turntable = new THREE.Group()
+  turntable.add(root)
+  scene.add(turntable)
   const size = box.getSize(new THREE.Vector3())
   const camera = new THREE.OrthographicCamera()
   camera.position.set(0, 0.6, 5)
   camera.lookAt(0, 0, 0)
   camera.near = 0.1
   camera.far = 20
-  fitCamera(camera, SPACING * 0.5 + Math.hypot(size.x, size.z) * 0.5, size.y * 0.56, ASPECT)
+  fitCamera(camera, Math.hypot(size.x, size.z) * 0.5, size.y * 0.56, ASPECT)
   return {
     renderer,
     scene,
     camera,
-    figures,
+    turntable,
     uniforms,
     dispose: () => {
-      roots.forEach((root) => root.traverse((node) => (node as THREE.Mesh).geometry?.dispose()))
+      root.traverse((node) => (node as THREE.Mesh).geometry?.dispose())
       material.dispose()
-      propMaterials.forEach((item) => item.dispose())
+      propMaterial.dispose()
       renderer.dispose()
       renderer.forceContextLoss()
     },
@@ -94,6 +84,7 @@ export default function MuscleModel3D({
 }) {
   const [gltf, setGltf] = useState<GLTF | null>(null)
   const [failed, setFailed] = useState(false)
+  const reducedMotion = useReducedMotion()
   const canvas = useRef<HTMLCanvasElement>(null)
   const stage = useRef<MapStage | null>(null)
   const drag = useRef<{ x: number; rotation: number } | null>(null)
@@ -119,7 +110,7 @@ export default function MuscleModel3D({
   const render = useCallback(() => {
     const current = stage.current
     if (!current) return
-    current.figures.forEach((figure, index) => (figure.rotation.y = turn.current + index * Math.PI))
+    current.turntable.rotation.y = turn.current
     current.renderer.render(current.scene, current.camera)
   }, [])
 
@@ -153,6 +144,41 @@ export default function MuscleModel3D({
   }, [gltf, failed, render])
 
   useEffect(() => {
+    const element = canvas.current
+    if (!gltf || !element || failed || reducedMotion) return
+    let frame = 0
+    let last: number | null = null
+    let onScreen = true
+    const tick = (now: number) => {
+      // A long gap means the page was hidden: the turn resumes where it stopped instead of jumping.
+      const step = Math.min(last === null ? 0 : now - last, 50)
+      last = now
+      if (!drag.current) {
+        turn.current += (step / 1000) * TURN_PER_SECOND
+        render()
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    const run = () => {
+      cancelAnimationFrame(frame)
+      last = null
+      if (onScreen && document.visibilityState === 'visible') frame = requestAnimationFrame(tick)
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry?.isIntersecting ?? true
+      run()
+    })
+    observer.observe(element)
+    document.addEventListener('visibilitychange', run)
+    run()
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', run)
+    }
+  }, [gltf, failed, reducedMotion, render])
+
+  useEffect(() => {
     if (!stage.current) return
     stage.current.uniforms.uLevels.value = levelsKey.split(',').map(Number)
     render()
@@ -177,7 +203,7 @@ export default function MuscleModel3D({
       ref={canvas}
       role="img"
       aria-label={label}
-      className="mx-auto block aspect-square w-full max-w-72 touch-pan-y"
+      className="mx-auto block aspect-[3/4] w-full max-w-56 touch-pan-y"
       onPointerDown={(event) => {
         if (!event.isPrimary) return
         event.currentTarget.setPointerCapture(event.pointerId)
