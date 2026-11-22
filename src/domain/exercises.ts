@@ -357,7 +357,12 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     sets: 3,
     restSeconds: 60,
     loadSteps: [
-      ...BAND_LADDER,
+      band('L1'),
+      band('L2'),
+      band('L3'),
+      variant('one-arm-L2', 'Одна рука с L2', 'L2'),
+      band('L3', 'L1'),
+      band('L3', 'L2'),
       variant('one-arm-L3', 'Одна рука с L3', 'L3'),
       variant('one-arm-L1+L3', 'Одна рука с L3+L1', 'L3', 'L1'),
       variant('one-arm-L2+L3', 'Одна рука с L3+L2', 'L3', 'L2'),
