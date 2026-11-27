@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import { cycleAt, type CycleState } from './cycle'
 
-export type PlayState = 'playing' | 'paused' | 'finished'
+export type PlayState = 'playing' | 'paused'
 
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -40,13 +40,7 @@ export function useAnimationLoop(
     const tick = (now: number) => {
       if (last !== null) elapsed.current += now - last
       last = now
-      const state = cycleAt(elapsed.current)
-      frameHandler.current(state)
-      if (state.finished) {
-        elapsed.current = 0
-        setPlayState('finished')
-        return
-      }
+      frameHandler.current(cycleAt(elapsed.current))
       frame = requestAnimationFrame(tick)
     }
     const run = () => {
