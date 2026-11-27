@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cycleAt, TEMPO, MAX_CYCLES } from './cycle'
+import { cycleAt, TEMPO } from './cycle'
 
 describe('animation cycle', () => {
   const cycle = TEMPO.toEnd + TEMPO.holdEnd + TEMPO.toStart + TEMPO.holdStart
@@ -12,7 +12,7 @@ describe('animation cycle', () => {
     expect(cycleAt(cycle + TEMPO.toEnd / 2).t).toBeCloseTo(0.5)
   })
 
-  it('stops on the start position after the last cycle', () => {
-    expect(cycleAt(cycle * MAX_CYCLES)).toEqual({ t: 0, phase: 'hold-start', finished: true })
+  it('keeps cycling without a limit', () => {
+    expect(cycleAt(cycle * 1000 + TEMPO.toEnd / 2).t).toBeCloseTo(0.5)
   })
 })

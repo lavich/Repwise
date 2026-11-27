@@ -1,11 +1,10 @@
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import type { Ref } from 'react'
 import type { PlayState } from './useAnimationLoop'
 
 const CONTROLS = {
   playing: { label: 'Пауза', icon: Pause, next: 'paused' },
   paused: { label: 'Запустить', icon: Play, next: 'playing' },
-  finished: { label: 'Повторить', icon: RotateCcw, next: 'playing' },
 } as const
 
 export function PlaybackBar({
